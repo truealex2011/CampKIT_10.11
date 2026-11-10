@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CampusLife — вход и регистрация</title>
+    <meta name="description" content="Экран входа и регистрации CampusLife на фоне ASCII-океана с акулами." />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --paper: #f6f6f3;
+        --ink: #0d1117;
+        --ink-2: #39424f;
+        --muted: #7b8798;
+        --line: rgba(13, 17, 23, 0.11);
+        --line-2: rgba(13, 17, 23, 0.06);
+        --accent: #0e6b76;
+        --accent-soft: rgba(14, 107, 118, 0.13);
+        --gold: #a97f31;
+        --rose: #b04a55;
+        --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      body {
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      #ocean {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        font-family: var(--mono);
+      }
+
+      .veil {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: radial-gradient(
+          118% 74% at 50% 44%,
+          rgba(246, 246, 243, 0.8) 0%,
+          rgba(246, 246, 243, 0.56) 26%,
+          rgba(246, 246, 243, 0.22) 52%,
+          rgba(246, 246, 243, 0) 74%
+        );
+      }
+
+      .shell {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px clamp(16px, 4.4vw, 40px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+
+      .mark {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+        background: var(--ink);
+        color: var(--paper);
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: -0.04em;
+        box-shadow: 0 6px 16px -6px rgba(13, 17, 23, 0.55);
+        transition: transform 0.5s var(--ease);
+      }
+
+      .brand:hover .mark {
+        transform: rotate(-8deg) scale(1.06);
+      }
+
+      .word {
+        font-size: 16px;
+        letter-spacing: -0.025em;
+      }
+
+      .word b {
+        font-weight: 650;
+      }
+
+      .word i {
+        font-weight: 300;
+        font-style: normal;
+        color: var(--accent);
+      }
+
+      .tools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .live {
+        display: none;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 12px 7px 10px;
+        border: 1px solid var(--line-2);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.6);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      @media (min-width: 720px) {
+        .live {
+          display: inline-flex;
+        }
+      }
+
+      .live i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 0 var(--accent-soft);
+        animation: sonar 2.6s var(--ease) infinite;
+      }
+
+      .live b {
+        font-weight: inherit;
+      }
+
+      @keyframes sonar {
+        0% {
+          box-shadow: 0 0 0 0 rgba(14, 107, 118, 0.5);
+        }
+        70%,
+        100% {
+          box-shadow: 0 0 0 9px rgba(14, 107, 118, 0);
+        }
+      }
+
+      .pill {
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--ink-2);
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.66);
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s var(--ease);
+      }
+
+      .pill:hover {
+        border-color: rgba(13, 17, 23, 0.28);
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.92);
+        transform: translateY(-1px);
+      }
+
+      .stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: clamp(2px, 1.8vh, 20px) 16px 26px;
+      }
+
+      @media (max-width: 719px) {
+        .shell {
+          min-height: 100dvh;
+        }
+
+        /* Центрирование авто-отступами: когда регистрация не влезает,
+           отступы схлопываются в 0 и верх формы остаётся доступен прокрутке. */
+        .stage > :first-child {
+          margin-top: auto;
+        }
+
+        .stage > :last-child {
+          margin-bottom: auto;
+        }
+
+        .stage > * {
+          flex-shrink: 0;
+        }
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 12px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        text-shadow: 0 0 12px rgba(246, 246, 243, 0.95), 0 0 4px rgba(246, 246, 243, 0.9);
+      }
+
+      .eyebrow::before,
+      .eyebrow::after {
+        content: "";
+        width: 22px;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.4;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 15ch;
+        font-size: clamp(30px, 6vw, 50px);
+        font-weight: 500;
+        line-height: 1.04;
+        letter-spacing: -0.036em;
+        text-align: center;
+        text-wrap: balance;
+        text-shadow: 0 0 26px rgba(246, 246, 243, 0.92), 0 0 7px rgba(246, 246, 243, 0.85);
+      }
+
+      h1 em {
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        font-style: italic;
+        letter-spacing: -0.01em;
+        color: var(--accent);
+      }
+
+      .sub {
+        margin: 11px 0 0;
+        max-width: 46ch;
+        font-size: 13.5px;
+        line-height: 1.5;
+        color: var(--ink-2);
+        text-align: center;
+        text-shadow: 0 0 18px rgba(246, 246, 243, 0.95), 0 0 5px rgba(246, 246, 243, 0.9);
+      }
+
+      .card {
+        position: relative;
+        width: min(384px, 100%);
+        margin-top: clamp(16px, 3vh, 30px);
+        padding: 15px 16px 17px;
+        border: 1px solid rgba(13, 17, 23, 0.13);
+        border-radius: 26px;
+        background: rgba(255, 255, 255, 0.58);
+        backdrop-filter: blur(20px) saturate(1.5);
+        -webkit-backdrop-filter: blur(20px) saturate(1.5);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.9),
+          0 2px 4px rgba(13, 17, 23, 0.05),
+          0 22px 44px -18px rgba(13, 17, 23, 0.22),
+          0 44px 80px -44px rgba(13, 17, 23, 0.3);
+        overflow: hidden;
+      }
+
+      .card::after {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+      }
+
+      .seg {
+        position: relative;
+        display: flex;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(13, 17, 23, 0.05);
+      }
+
+      .thumb {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 4px;
+        width: calc((100% - 8px) / 2);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 1px 2px rgba(13, 17, 23, 0.1), 0 4px 12px -4px rgba(13, 17, 23, 0.18);
+        transition: transform 0.4s var(--ease);
+      }
+
+      .seg:has([aria-selected="true"]:nth-child(3)) .thumb {
+        transform: translateX(100%);
+      }
+
+      .seg button {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 9px 10px;
+        color: var(--muted);
+        background: none;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: color 0.28s var(--ease);
+      }
+
+      .seg button[aria-selected="true"] {
+        color: var(--ink);
+      }
+
+      .seg button:hover {
+        color: var(--ink);
+      }
+
+      form {
+        margin: 14px 0 0;
+      }
+
+      .field {
+        margin-bottom: 10px;
+      }
+
+      .micro {
+        display: block;
+        margin: 0 2px 6px;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--muted);
+        transition: color 0.24s var(--ease);
+      }
+
+      .field:focus-within .micro {
+        color: var(--accent);
+      }
+
+      .box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.5);
+        transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease), background 0.22s var(--ease);
+      }
+
+      .box:hover {
+        border-color: rgba(13, 17, 23, 0.2);
+      }
+
+      .box:focus-within {
+        border-color: rgba(14, 107, 118, 0.6);
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 0 0 3.5px var(--accent-soft);
+      }
+
+      .ico {
+        position: absolute;
+        left: 12px;
+        display: grid;
+        place-items: center;
+        color: #9aa5b4;
+        pointer-events: none;
+        transition: color 0.22s var(--ease), transform 0.3s var(--ease);
+      }
+
+      .box:focus-within .ico {
+        color: var(--accent);
+        transform: scale(1.06);
+      }
+
+      input,
+      select {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        color: var(--ink);
+        padding: 10.5px 12px 10.5px 37px;
+        border: 0;
+        border-radius: 14px;
+        background: none;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+      }
+
+      input::placeholder {
+        color: #a5aeb9;
+      }
+
+      select {
+        padding-right: 32px;
+        cursor: pointer;
+      }
+
+      .box:has(.reveal) input {
+        padding-right: 34px;
+      }
+
+      .chev {
+        position: absolute;
+        right: 12px;
+        color: #9aa5b4;
+        pointer-events: none;
+      }
+
+      .reveal {
+        position: absolute;
+        right: 8px;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: #9aa5b4;
+        cursor: pointer;
+        transition: color 0.2s, background 0.2s;
+      }
+
+      .reveal:hover {
+        color: var(--ink);
+        background: rgba(13, 17, 23, 0.06);
+      }
+
+      .reveal .off {
+        display: none;
+      }
+
+      .reveal[aria-expanded="true"] .on {
+        display: none;
+      }
+
+      .reveal[aria-expanded="true"] .off {
+        display: block;
+      }
+
+      .check {
+        position: absolute;
+        right: 12px;
+        display: none;
+        place-items: center;
+        color: var(--accent);
+        pointer-events: none;
+      }
+
+      .field:has(.reveal) .check {
+        right: 36px;
+      }
+
+      .field:has(input:not(:placeholder-shown):not(.bad)) .check,
+      .field:has(select:not(.bad):valid) .check {
+        display: grid;
+      }
+
+      .field:has(.bad) .box {
+        border-color: rgba(176, 74, 85, 0.62);
+        background: rgba(176, 74, 85, 0.045);
+      }
+
+      .field:has(.bad) .box:focus-within {
+        box-shadow: 0 0 0 3.5px rgba(176, 74, 85, 0.14);
+      }
+
+      .field:has(.bad) .micro {
+        color: var(--rose);
+      }
+
+      .hint {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 0;
+        margin: 0;
+        font-size: 11px;
+        line-height: 1;
+        color: var(--rose);
+        opacity: 0;
+        transform: translateY(-3px);
+        transition: opacity 0.2s, transform 0.2s var(--ease), margin 0.2s;
+      }
+
+      .hint:not(:empty) {
+        margin: 6px 2px 0;
+        opacity: 1;
+        transform: none;
+      }
+
+      .hint::before {
+        content: "";
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .hint:empty::before {
+        display: none;
+      }
+
+      .primary {
+        position: relative;
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        color: var(--paper);
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--ink);
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 8px 20px -10px rgba(13, 17, 23, 0.75);
+        transition: transform 0.18s var(--ease), box-shadow 0.24s var(--ease), opacity 0.2s;
+      }
+
+      .primary::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -60%;
+        width: 40%;
+        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+        transform: skewX(-14deg);
+        transition: left 0.6s var(--ease);
+      }
+
+      .primary:hover:not(:disabled)::before {
+        left: 130%;
+      }
+
+      .primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 26px -12px rgba(13, 17, 23, 0.8);
+      }
+
+      .primary:active:not(:disabled) {
+        transform: translateY(0) scale(0.995);
+      }
+
+      .primary:disabled {
+        opacity: 0.34;
+        cursor: not-allowed;
+      }
+
+      .primary .arw {
+        transition: transform 0.3s var(--ease);
+      }
+
+      .primary:hover:not(:disabled) .arw {
+        transform: translateX(3px);
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      .row.between {
+        justify-content: space-between;
+      }
+
+      .link {
+        position: relative;
+        font: inherit;
+        font-size: 12.5px;
+        color: var(--muted);
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .link::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -2px;
+        height: 1px;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s var(--ease);
+      }
+
+      .link:hover {
+        color: var(--ink);
+      }
+
+      .link:hover::after {
+        transform: scaleX(1);
+      }
+
+      .ghost {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-2);
+        padding: 12px 15px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s, transform 0.18s var(--ease);
+      }
+
+      .ghost:hover:not(:disabled) {
+        border-color: rgba(13, 17, 23, 0.26);
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateY(-1px);
+      }
+
+      .ghost:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .note {
+        margin: 10px 2px 0;
+        font-size: 11.5px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .note b {
+        color: var(--ink-2);
+        font-weight: 600;
+      }
+
+      .roles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 12px 0 2px;
+      }
+
+      .roles button {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        font: inherit;
+        text-align: left;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.42);
+        cursor: pointer;
+        transition: border-color 0.24s var(--ease), background 0.24s var(--ease), transform 0.24s var(--ease),
+          box-shadow 0.24s var(--ease);
+      }
+
+      .roles button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(13, 17, 23, 0.22);
+      }
+
+      .roles button[aria-selected="true"] {
+        border-color: rgba(14, 107, 118, 0.55);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 22px -14px rgba(13, 17, 23, 0.4);
+      }
+
+      .roles .rt {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+      }
+
+      .roles .rd {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+
+      .roles button[aria-selected="true"] .rd {
+        color: var(--ink-2);
+      }
+
+      .orgtabs {
+        display: flex;
+        gap: 6px;
+        margin: 11px 0 12px;
+      }
+
+      .orgtabs button {
+        flex: 1;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 8px 6px;
+        color: var(--muted);
+        background: rgba(13, 17, 23, 0.04);
+        border: 1px solid transparent;
+        border-radius: 11px;
+        cursor: pointer;
+        transition: color 0.2s, background 0.2s, border-color 0.2s;
+      }
+
+      .orgtabs button[aria-selected="true"] {
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.86);
+        border-color: var(--line);
+      }
+
+      .steps {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 2px 2px 12px;
+      }
+
+      .steps .dot {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 21px;
+        height: 21px;
+        flex: none;
+        border-radius: 50%;
+        background: rgba(13, 17, 23, 0.07);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 10px;
+        transition: background 0.3s var(--ease), color 0.3s var(--ease);
+      }
+
+      .steps .dot[aria-current="step"] {
+        background: var(--ink);
+        color: var(--paper);
+      }
+
+      .steps .dot[aria-current="true"] {
+        background: var(--accent);
+        color: transparent;
+      }
+
+      .steps .dot[aria-current="true"]::after {
+        content: "";
+        position: absolute;
+        width: 7px;
+        height: 7px;
+        border-left: 1.6px solid #fff;
+        border-bottom: 1.6px solid #fff;
+        transform: rotate(-45deg) translate(0.5px, -0.5px);
+      }
+
+      .steps .rail {
+        flex: 1;
+        height: 2px;
+        border-radius: 2px;
+        background: rgba(13, 17, 23, 0.09);
+        overflow: hidden;
+      }
+
+      .steps .rail i {
+        display: block;
+        height: 100%;
+        width: 50%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--accent), var(--ink));
+        transition: width 0.45s var(--ease);
+      }
+
+      .steps .cap {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .strength {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin: -3px 2px 0;
+        opacity: 0.45;
+        transition: opacity 0.24s var(--ease);
+      }
+
+      .field:focus-within .strength {
+        opacity: 1;
+      }
+
+      .strength i {
+        flex: 1;
+        height: 3px;
+        border-radius: 3px;
+        background: rgba(13, 17, 23, 0.09);
+        transition: background 0.3s var(--ease);
+      }
+
+      .strength.lvl-1 i:nth-child(-n+1),
+      .strength.lvl-2 i:nth-child(-n+2),
+      .strength.lvl-3 i:nth-child(-n+3),
+      .strength.lvl-4 i:nth-child(-n+4) {
+        background: var(--s);
+      }
+
+      .strength.lvl-1 {
+        --s: var(--rose);
+      }
+
+      .strength.lvl-2 {
+        --s: var(--gold);
+      }
+
+      .strength.lvl-3 {
+        --s: var(--accent);
+      }
+
+      .strength.lvl-4 {
+        --s: #0b7a5e;
+      }
+
+      .strength b {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-left: 3px;
+        transition: color 0.3s var(--ease);
+      }
+
+      .strength.lvl-1 b,
+      .strength.lvl-2 b,
+      .strength.lvl-3 b,
+      .strength.lvl-4 b {
+        color: var(--s);
+      }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 16px 0 11px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #9aa5b4;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--line-2);
+      }
+
+      .tests {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tests button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font: inherit;
+        font-size: 12px;
+        padding: 7px 11px 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.5);
+        color: var(--ink-2);
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s, transform 0.18s var(--ease), color 0.2s;
+      }
+
+      .tests button::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--dot, var(--accent));
+      }
+
+      .tests button:hover {
+        border-color: rgba(13, 17, 23, 0.28);
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--ink);
+        transform: translateY(-1px);
+      }
+
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        z-index: 4;
+        max-width: min(460px, 90vw);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 11px 16px 11px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font-size: 12.5px;
+        color: #eef2f6;
+        background: rgba(13, 17, 23, 0.94);
+        box-shadow: 0 18px 40px -16px rgba(13, 17, 23, 0.7);
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        transform: translate(-50%, 14px) scale(0.97);
+        transition: opacity 0.26s var(--ease), transform 0.34s var(--ease);
+        pointer-events: none;
+      }
+
+      #toast::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        flex: none;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(14, 107, 118, 0.9);
+      }
+
+      #toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      [data-pane]:not([hidden]) {
+        animation: pane-in 0.38s var(--ease);
+      }
+
+      @keyframes pane-in {
+        from {
+          opacity: 0;
+          transform: translateY(7px);
+        }
+      }
+
+      [data-step]:not([hidden]) {
+        animation: step-in 0.45s var(--ease);
+      }
+
+      @keyframes step-in {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .rise {
+        opacity: 0;
+        transform: translateY(14px);
+        animation: rise 0.8s var(--ease) forwards;
+        animation-delay: var(--d, 0s);
+      }
+
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .rise {
+          opacity: 1;
+          transform: none;
+          animation: none;
+        }
+
+        [data-pane],
+        [data-step] {
+          animation: none;
+        }
+
+        .live i {
+          animation: none;
+        }
+
+        * {
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .card {
+          border-radius: 22px;
+          padding: 13px 13px 15px;
+        }
+
+        .roles {
+          grid-template-columns: 1fr;
+        }
+
+        .row.between {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 7px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="ocean" aria-hidden="true"></canvas>
+    <div class="veil" aria-hidden="true"></div>
+
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">&lt;/&gt;</span>
+          <span class="word"><b>Campus</b><i>Life</i></span>
+        </div>
+        <div class="tools">
+          <span class="live"><i></i>океан · <b id="live-count">7 рыб</b></span>
+          <button class="pill" type="button" data-stub="История">История</button>
+        </div>
+      </div>
+
+      <div class="stage">
+        <p class="eyebrow rise" style="--d:0.05s">TASKILLS · Мобильная разработка</p>
+        <h1 class="rise" style="--d:0.12s">what&rsquo;s on your <em>mind</em>?</h1>
+        <p class="sub rise" style="--d:0.2s">
+          Афиша школьных событий в одной ленте: находи встречи и вступай в организации по id.
+        </p>
+
+        <section class="card rise" style="--d:0.28s">
+          <div class="seg" id="auth-tabs">
+            <span class="thumb" aria-hidden="true"></span>
+            <button type="button" data-tab="login" aria-selected="true">Вход</button>
+            <button type="button" data-tab="signup" aria-selected="false">Регистрация</button>
+          </div>
+
+          <div id="auth-host">
+            <form data-pane="login" novalidate>
+              <div class="field">
+                <label class="micro" for="login-id">Почта или телефон</label>
+                <div class="box">
+                  <span class="ico">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                      stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3.5" /><path d="m3.5 7.5 7.3 5.2a2 2 0 0 0 2.4 0l7.3-5.2" /></svg>
+                  </span>
+                  <input id="login-id" type="text" required autocomplete="username" placeholder="uchastnik@campus.life" />
+                  <span class="check">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                  </span>
+                </div>
+                <p class="hint"></p>
+              </div>
+
+              <div class="field">
+                <label class="micro" for="login-pass">Пароль</label>
+                <div class="box">
+                  <span class="ico">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                      stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="3" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>
+                  </span>
+                  <input id="login-pass" type="password" required autocomplete="current-password" placeholder="••••••••" />
+                  <button class="reveal" type="button" data-reveal="login-pass" aria-label="Показать пароль" aria-expanded="false">
+                    <svg class="on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                      stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
+                    <svg class="off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                      stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 3.5 17 17" /><path d="M10.2 6.1A9.9 9.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17.6 17.6 0 0 1-3.4 4M6.4 8.3A17.4 17.4 0 0 0 2.5 12s3.5 6 9.5 6a9.7 9.7 0 0 0 3.1-.4" /><path d="M9.8 9.9a3 3 0 0 0 4.2 4.2" /></svg>
+                  </button>
+                </div>
+                <p class="hint"></p>
+              </div>
+
+              <button class="primary" type="submit">
+                Войти
+                <svg class="arw" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15m-6-7 7 7-7 7" /></svg>
+              </button>
+
+              <div class="row between">
+                <button class="link" type="button" data-stub="Восстановление пароля">Забыли пароль?</button>
+                <button class="link" type="button" data-stub="Лента">Продолжить как гость</button>
+              </div>
+
+              <div class="divider">быстрый вход</div>
+              <div class="tests">
+                <button type="button" data-test="member" style="--dot:#0e6b76">участник</button>
+                <button type="button" data-test="organizer" style="--dot:#a97f31">организатор</button>
+                <button type="button" data-test="admin" style="--dot:#0d1117">админ</button>
+              </div>
+            </form>
+
+            <form data-pane="signup" hidden novalidate>
+              <div class="roles" id="role-tabs">
+                <button type="button" data-tab="member" aria-selected="true">
+                  <span class="rt">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                      stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" /></svg>
+                    Участник
+                  </span>
+                  <span class="rd">Смотришь афишу и ходишь на события</span>
+                </button>
+                <button type="button" data-tab="org" aria-selected="false">
+                  <span class="rt">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                      stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V7.5 5.5A1.5 1.5 0 0 1 5.5 4h6A1.5 1.5 0 0 1 13 5.5V20M13 20V10h5.5A1.5 1.5 0 0 1 20 11.5V20M2.5 20h19" /><path d="M6.8 8h3.4M6.8 11.5h3.4M6.8 15h3.4" /></svg>
+                    Организатор
+                  </span>
+                  <span class="rd">Создаёшь события и ведёшь свою организацию</span>
+                </button>
+              </div>
+
+              <div id="role-host">
+                <div data-pane="member">
+                  <div class="field">
+                    <label class="micro" for="su-name">Имя и фамилия</label>
+                    <div class="box">
+                      <span class="ico">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" /></svg>
+                      </span>
+                      <input id="su-name" type="text" required placeholder="Алексей Петров" />
+                      <span class="check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                          stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                      </span>
+                    </div>
+                    <p class="hint"></p>
+                  </div>
+
+                  <div class="field">
+                    <label class="micro" for="su-email">Почта</label>
+                    <div class="box">
+                      <span class="ico">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3.5" /><path d="m3.5 7.5 7.3 5.2a2 2 0 0 0 2.4 0l7.3-5.2" /></svg>
+                      </span>
+                      <input id="su-email" type="email" required placeholder="me@example.com" />
+                      <span class="check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                          stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                      </span>
+                    </div>
+                    <p class="hint"></p>
+                  </div>
+
+                  <div class="field">
+                    <label class="micro" for="su-phone">Телефон</label>
+                    <div class="box">
+                      <span class="ico">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.8" width="11" height="18.4" rx="3" /><path d="M10.5 18.3h3" /></svg>
+                      </span>
+                      <input id="su-phone" type="tel" data-phone required placeholder="+7 900 123-45-67" />
+                      <span class="check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                          stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                      </span>
+                    </div>
+                    <p class="hint"></p>
+                  </div>
+
+                  <div class="field">
+                    <label class="micro" for="su-pass">Пароль</label>
+                    <div class="box">
+                      <span class="ico">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="3" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>
+                      </span>
+                      <input id="su-pass" type="password" required placeholder="минимум 6 символов" />
+                      <button class="reveal" type="button" data-reveal="su-pass" aria-label="Показать пароль" aria-expanded="false">
+                        <svg class="on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
+                        <svg class="off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 3.5 17 17" /><path d="M10.2 6.1A9.9 9.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17.6 17.6 0 0 1-3.4 4M6.4 8.3A17.4 17.4 0 0 0 2.5 12s3.5 6 9.5 6a9.7 9.7 0 0 0 3.1-.4" /><path d="M9.8 9.9a3 3 0 0 0 4.2 4.2" /></svg>
+                      </button>
+                    </div>
+                    <div class="strength" id="su-strength" aria-hidden="true">
+                      <i></i><i></i><i></i><i></i><b>пароль</b>
+                    </div>
+                    <p class="hint"></p>
+                  </div>
+
+                  <button class="primary" type="submit" style="margin-top: 6px">
+                    Создать аккаунт
+                    <svg class="arw" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15m-6-7 7 7-7 7" /></svg>
+                  </button>
+                  <p class="note"><b>Ключ не нужен</b> — участник регистрируется сам.</p>
+                </div>
+
+                <div data-pane="org" hidden>
+                  <div class="orgtabs" id="org-tabs">
+                    <button type="button" data-tab="create" aria-selected="true">Создать организацию</button>
+                    <button type="button" data-tab="join" aria-selected="false">Вступить по id</button>
+                  </div>
+
+                  <div id="org-host">
+                    <div data-pane="create">
+                      <div class="steps">
+                        <span class="dot" data-dot="0" aria-current="step">1</span>
+                        <span class="rail"><i id="wizard-fill"></i></span>
+                        <span class="dot" data-dot="1">2</span>
+                        <span class="cap" id="wizard-progress">1 из 2</span>
+                      </div>
+
+                      <div data-step="0">
+                        <div class="field">
+                          <label class="micro" for="org-key">Ключ админа</label>
+                          <div class="box">
+                            <span class="ico">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                                stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="4.5" /><path d="m11.8 11.8 7.7 7.7m-2.6-2.6 2.2-2.2" /></svg>
+                            </span>
+                            <input id="org-key" type="text" required placeholder="CL-XXXX-XXXX" autocomplete="off" spellcheck="false" />
+                            <span class="check">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                            </span>
+                          </div>
+                          <p class="hint"></p>
+                        </div>
+                        <p class="note">
+                          Одноразовый ключ выдаёт админ. В базе хранится только хеш, попытки ограничены.
+                        </p>
+                        <button class="primary" type="button" id="wizard-next" style="margin-top: 12px">
+                          Далее
+                          <svg class="arw" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15m-6-7 7 7-7 7" /></svg>
+                        </button>
+                      </div>
+
+                      <div data-step="1" hidden>
+                        <div class="field">
+                          <label class="micro" for="org-name">Название организации</label>
+                          <div class="box">
+                            <span class="ico">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V7.5 5.5A1.5 1.5 0 0 1 5.5 4h6A1.5 1.5 0 0 1 13 5.5V20M13 20V10h5.5A1.5 1.5 0 0 1 20 11.5V20M2.5 20h19" /></svg>
+                            </span>
+                            <input id="org-name" type="text" required placeholder="Студсовет школы №24" />
+                            <span class="check">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                            </span>
+                          </div>
+                          <p class="hint"></p>
+                        </div>
+
+                        <div class="field">
+                          <label class="micro" for="org-type">Тип</label>
+                          <div class="box">
+                            <span class="ico">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 8.4 4.6L12 12.4 3.6 7.8 12 3.2Z" /><path d="m3.6 12.6 8.4 4.6 8.4-4.6" /></svg>
+                            </span>
+                            <select id="org-type" required>
+                              <option value="">Выбери тип</option>
+                              <option>Школа</option>
+                              <option>Клуб</option>
+                              <option>Секция</option>
+                              <option>Студсовет</option>
+                              <option>Спортивная команда</option>
+                            </select>
+                            <span class="chev">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="m6 9.5 6 6 6-6" /></svg>
+                            </span>
+                          </div>
+                          <p class="hint"></p>
+                        </div>
+
+                        <div class="field">
+                          <label class="micro" for="org-city">Город</label>
+                          <div class="box">
+                            <span class="ico">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11.2A7 7 0 0 0 5 9.8C5 14.7 12 21 12 21Z" /><circle cx="12" cy="9.6" r="2.6" /></svg>
+                            </span>
+                            <input id="org-city" type="text" required placeholder="Москва" />
+                            <span class="check">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                                stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                            </span>
+                          </div>
+                          <p class="hint"></p>
+                        </div>
+
+                        <div class="row">
+                          <button class="ghost" type="button" id="wizard-back">Назад</button>
+                          <button class="primary" type="submit" id="wizard-submit" style="flex: 1; margin-top: 0">
+                            Создать
+                            <svg class="arw" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15m-6-7 7 7-7 7" /></svg>
+                          </button>
+                        </div>
+                        <p class="note">Станешь владельцем организации — логотип добавишь позже.</p>
+                      </div>
+                    </div>
+
+                    <div data-pane="join" hidden>
+                      <div class="field" style="margin-top: 12px">
+                        <label class="micro" for="join-id">ID организации</label>
+                        <div class="box">
+                          <span class="ico">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                              stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5 8 20.5M16 3.5 14.5 20.5M4 8.8h16M3.5 15h16" /></svg>
+                          </span>
+                          <input id="join-id" type="text" required placeholder="org_42" autocomplete="off" spellcheck="false" />
+                          <span class="check">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                              stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 4.5 4.5 10-10.5" /></svg>
+                          </span>
+                        </div>
+                        <p class="hint"></p>
+                      </div>
+                      <button class="primary" type="submit">
+                        Отправить заявку
+                        <svg class="arw" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15m-6-7 7 7-7 7" /></svg>
+                      </button>
+                      <p class="note"><b>Ключ не нужен</b> — заявку одобряет владелец организации в своём профиле.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>/*__BUNDLE__*/</script>
+  </body>
+</html>

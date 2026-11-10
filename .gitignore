@@ -1,0 +1,13 @@
+node_modules/
+build/
+.dart_tool/
+.idea/
+*.iml
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+temp_repo/
+.sharrowkin/
+.chrome-profile/
+.DS_Store
+*.log
