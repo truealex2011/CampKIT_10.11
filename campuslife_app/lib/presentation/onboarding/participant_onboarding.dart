@@ -29,7 +29,6 @@ abstract final class _C {
   static const Color accent = Color(0xFF0E6B76);
   static const Color glow = Color(0xFF5FD4DE);
   static const Color line = Color(0x1F0D1117);
-  static const Color lineSoft = Color(0x120D1117);
   static const Color lineStrong = Color(0x3D0D1117);
   static const Color accentSoft = Color(0x140E6B76);
   static const Color accentLine = Color(0x4D0E6B76);
@@ -1734,7 +1733,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
           const SizedBox(height: 22),
           _PrimaryButton(
             label: 'Перейти к событиям',
-            onPressed: () => _finish(ParticipantOnboardingResult.completed),
+            onTap: () => _finish(ParticipantOnboardingResult.completed),
           ),
         ],
       ),
