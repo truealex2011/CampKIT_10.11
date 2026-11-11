@@ -469,7 +469,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
 
   _DemoKind _demoKindFor(_Phase phase) {
     return switch (phase) {
-      _Phase.swipeFeed => _DemoKind.swipeUp,
+      _Phase.swipeFeed => _DemoKind.none,
       _Phase.media => _DemoKind.swipeLeft,
       _Phase.favorite => _DemoKind.tapFish,
       _Phase.register => _DemoKind.holdDrag,
@@ -887,6 +887,17 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     );
   }
 
+  _RailAction? _actionFor(_Phase phase) {
+    return switch (phase) {
+      _Phase.reminder => _RailAction.bell,
+      _Phase.favorite || _Phase.register => _RailAction.fish,
+      _Phase.description => _RailAction.info,
+      _Phase.share => _RailAction.share,
+      _Phase.report => _RailAction.flag,
+      _ => null,
+    };
+  }
+
   Widget _buildFeed(Size size, double textScale) {
     final _FeedGeometry geo = _FeedGeometry.of(size);
     final bool done = _isDone(_phase);
@@ -897,6 +908,9 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
           child: PageView.builder(
             controller: _pages,
             scrollDirection: Axis.vertical,
+            physics: done
+                ? const NeverScrollableScrollPhysics()
+                : const PageScrollPhysics(parent: ClampingScrollPhysics()),
             itemCount: _events.length,
             onPageChanged: (int index) {
               if (index == _feedIndex) return;
@@ -905,6 +919,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
             },
             itemBuilder: (BuildContext context, int index) {
               return _FeedSlide(
+                geo: geo,
                 event: _events[index],
                 index: index,
                 active: index == _feedIndex,
@@ -943,6 +958,50 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               ),
             ),
           ),
+        if (done && _phase != _Phase.settings)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragEnd: (DragEndDetails details) {
+                final double velocity = details.primaryVelocity ?? 0;
+                if (velocity > 160) _advance();
+              },
+              child: const SizedBox.expand(),
+            ),
+          ),
+        if (_phase == _Phase.swipeFeed && !done)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 150,
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: const BoxDecoration(
+                    color: _C.surface,
+                    borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(width: 6, height: 6, color: _C.accent),
+                      const SizedBox(width: 7),
+                      Text(
+                        'Смахни вверх: следующее событие',
+                        style: _T.sans(
+                          12,
+                          weight: FontWeight.w700,
+                          color: _C.ink2,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned(
           top: 0,
           left: 0,
@@ -974,13 +1033,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               step: _stepNumber,
               total: _stepCount,
               done: done,
-              showNext: done &&
-                  _phase != _Phase.swipeFeed &&
-                  _phase != _Phase.settings &&
-                  _phase != _Phase.intro &&
-                  _phase != _Phase.finale,
               onSkip: () => _finish(ParticipantOnboardingResult.skipped),
-              onNext: _advance,
             ),
           ),
         ),
@@ -1015,6 +1068,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: _FocusedAction(
+                  hint: _focusLabel(),
                   phase: _phase,
                   done: done,
                   reduceMotion: _reduceMotion,
@@ -1431,7 +1485,6 @@ class _FeedSlide extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context) {
-    final bool mediaLocked = mediaIndex == 0;
     return Stack(
       children: <Widget>[
         Positioned(
@@ -1443,9 +1496,9 @@ class _FeedSlide extends StatelessWidget {
             child: PageView.builder(
               controller: mediaController,
               itemCount: event.scenes.length,
-              physics: mediaLocked
-                  ? const NeverScrollableScrollPhysics()
-                  : const PageScrollPhysics(parent: ClampingScrollPhysics()),
+              physics: const PageScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               onPageChanged: onMediaChanged,
               itemBuilder: (BuildContext context, int i) {
                 final _SceneKind kind = event.scenes[i];
@@ -1478,20 +1531,27 @@ class _FeedSlide extends StatelessWidget {
           child: _SkeletonText(reveal: reveal, event: event),
         ),
         Positioned(
-          left: 16,
           right: 16,
-          top: math.max(10, geo.mediaHeight - 96),
-          child: _FocusLine(
-            text: focusLabel,
+          top: math.max(12, geo.mediaHeight - 132),
+          child: _ActionGlyph(
+            action: _actionFor(phase),
+            focused: active,
+            accent: phase == _Phase.reminder ||
+                phase == _Phase.favorite ||
+                phase == _Phase.register ||
+                phase == _Phase.description ||
+                phase == _Phase.share ||
+                phase == _Phase.report,
+          ),
+        ),
+        Positioned(
+          left: 20,
+          top: math.max(10, geo.mediaHeight - 134),
+          child: _FocusDot(
             visible: active && focusLabel.isNotEmpty && !done,
             reduceMotion: reduceMotion,
             pulse: pulse,
           ),
-        ),
-        Positioned(
-          right: 12,
-          top: geo.mediaHeight - 24,
-          child: _RailColumn(active: active, phase: phase),
         ),
         if (active && tooShort)
           Positioned(
@@ -1664,17 +1724,13 @@ class _TopBar extends StatelessWidget {
     required this.step,
     required this.total,
     required this.done,
-    required this.showNext,
     required this.onSkip,
-    required this.onNext,
   });
 
   final int step;
   final int total;
   final bool done;
-  final bool showNext;
   final VoidCallback onSkip;
-  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -1688,37 +1744,6 @@ class _TopBar extends StatelessWidget {
         ),
         const Spacer(),
         _PixelProgress(step: step, total: total, done: done),
-        if (showNext) ...<Widget>[
-          const SizedBox(width: 8),
-          Semantics(
-            button: true,
-            label: 'Далее',
-            excludeSemantics: true,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onNext,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 66, minHeight: 40),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: const BoxDecoration(
-                  color: _C.accent,
-                  borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
-                ),
-                child: Center(
-                  child: Text(
-                    'Далее',
-                    style: _T.sans(
-                      12.5,
-                      weight: FontWeight.w800,
-                      color: _C.surface,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
         const SizedBox(width: 2),
         Semantics(
           button: true,
@@ -1890,6 +1915,7 @@ class _PrimaryButton extends StatelessWidget {
 
 class _FocusedAction extends StatelessWidget {
   const _FocusedAction({
+    required this.hint,
     required this.phase,
     required this.done,
     required this.reduceMotion,
@@ -1908,6 +1934,7 @@ class _FocusedAction extends StatelessWidget {
     required this.onNext,
   });
 
+  final String hint;
   final _Phase phase;
   final bool done;
   final bool reduceMotion;
@@ -1969,6 +1996,39 @@ class _FocusedAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isHold = phase == _Phase.register && !done;
     final bool isFish = (phase == _Phase.favorite || isHold) && !done;
+    if (done && phase != _Phase.settings) {
+      return Semantics(
+        label: 'Готово. Смахни вниз, чтобы продолжить',
+        excludeSemantics: true,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            color: _C.surface,
+            borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'Готово. Смахни вниз',
+                style: _T.sans(
+                  14,
+                  weight: FontWeight.w800,
+                  color: _C.accent,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(width: 8),
+              CustomPaint(
+                size: const Size(12, 12),
+                painter: _ArrowDownPainter(color: _C.accent),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
       label: _semanticLabel,
@@ -1988,7 +2048,7 @@ class _FocusedAction extends StatelessWidget {
             final double holdValue = _saturate(hold.value);
             return Container(
               constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
               decoration: BoxDecoration(
                 color: _C.accent,
                 borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
@@ -2004,13 +2064,13 @@ class _FocusedAction extends StatelessWidget {
                 children: <Widget>[
                   if (isFish)
                     SizedBox(
-                      width: 40,
-                      height: 40,
+                      width: 26,
+                      height: 26,
                       child: Stack(
                         alignment: Alignment.center,
                         children: <Widget>[
                           CustomPaint(
-                            size: const Size(34, 28),
+                            size: const Size(24, 20),
                             painter: _FishGlyphPainter(
                               color: _C.surface,
                               wave: reduceMotion
@@ -2020,44 +2080,56 @@ class _FocusedAction extends StatelessWidget {
                           ),
                           if (holdValue > 0 && holdValue < 1)
                             CustomPaint(
-                              size: const Size(40, 40),
+                              size: const Size(28, 28),
                               painter: _RingPainter(progress: holdValue),
                             ),
                         ],
                       ),
-                    )
-                  else
-                    const SizedBox(width: 12),
+                    ),
+                  if (isFish) const SizedBox(width: 10),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        isHold && past ? 'Отпусти' : _label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: isFish ? TextAlign.left : TextAlign.center,
-                        style: _T.sans(
-                          14.5,
-                          weight: FontWeight.w800,
-                          color: _C.surface,
-                          height: 1.2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          isHold && past ? 'Отпусти' : hint,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: _T.sans(
+                            13,
+                            weight: FontWeight.w700,
+                            color: _C.surface,
+                            height: 1.24,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _label.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _T.mono(
+                            9,
+                            color: _C.surface.withValues(alpha: 0.82),
+                            letterSpacing: 0.9,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(
-                    width: 40,
-                    height: 40,
+                    width: 34,
+                    height: 34,
                     child: Stack(
                       alignment: Alignment.center,
                       children: <Widget>[
                         CustomPaint(
-                          size: const Size(34, 34),
+                          size: const Size(30, 30),
                           painter: _KnobPainter(progress: drag, past: past),
                         ),
                         if (holdReady || drag > 0)
                           CustomPaint(
-                            size: const Size(26, 26),
+                            size: const Size(22, 22),
                             painter: _ArrowLeftPainter(
                               color: _C.accent,
                               opacity: 0.5 + drag * 0.5,
@@ -2168,31 +2240,45 @@ class _SkeletonText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return reveal
-        ? const _ContentBlock()
-        : const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Semantics(
-              label: 'Описание события загружается',
-              excludeSemantics: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  _Bone(width: 96, height: 18, radius: 9),
-                  SizedBox(height: 16),
-                  _Bone(width: double.infinity, height: 20, radius: 6),
-                  SizedBox(height: 9),
-                  _Bone(width: 210, height: 20, radius: 6),
-                  SizedBox(height: 16),
-                  _Bone(width: 148, height: 12, radius: 6),
-                  SizedBox(height: 8),
-                  _Bone(width: double.infinity, height: 12, radius: 6),
-                  SizedBox(height: 8),
-                  _Bone(width: 236, height: 12, radius: 6),
-                ],
-              ),
-            ),
-          );
+    return AnimatedSwitcher(
+      duration: _D.stage,
+      switchInCurve: _E.soft,
+      switchOutCurve: _E.soft,
+      child: reveal
+          ? _ContentBlock(key: const ValueKey<String>('ready'), event: event)
+          : const _LoadingBlock(key: ValueKey<String>('loading')),
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Semantics(
+        label: 'Описание события загружается',
+        excludeSemantics: true,
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _Bone(width: 96, height: 18, radius: 9),
+            SizedBox(height: 16),
+            _Bone(width: double.infinity, height: 20, radius: 6),
+            SizedBox(height: 9),
+            _Bone(width: 210, height: 20, radius: 6),
+            SizedBox(height: 16),
+            _Bone(width: 148, height: 12, radius: 6),
+            SizedBox(height: 8),
+            _Bone(width: double.infinity, height: 12, radius: 6),
+            SizedBox(height: 8),
+            _Bone(width: 236, height: 12, radius: 6),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -2291,15 +2377,13 @@ class _MediaBadge extends StatelessWidget {
   }
 }
 
-class _FocusLine extends StatelessWidget {
-  const _FocusLine({
-    required this.text,
+class _FocusDot extends StatelessWidget {
+  const _FocusDot({
     required this.visible,
     required this.reduceMotion,
     required this.pulse,
   });
 
-  final String text;
   final bool visible;
   final bool reduceMotion;
   final Animation<double> pulse;
@@ -2307,40 +2391,24 @@ class _FocusLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
-    return AnimatedBuilder(
-      animation: pulse,
-      builder: (BuildContext context, Widget? child) {
-        final double t = reduceMotion ? 0.0 : pulse.value;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: SizedBox(
-                width: 10,
-                height: 10,
-                child: CustomPaint(
-                  painter: _PulseDotPainter(t: t, reduceMotion: reduceMotion),
-                ),
+    return Semantics(
+      label: 'Текущий шаг подсвечен',
+      excludeSemantics: true,
+      child: AnimatedBuilder(
+        animation: pulse,
+        builder: (BuildContext context, Widget? child) {
+          return SizedBox(
+            width: 12,
+            height: 12,
+            child: CustomPaint(
+              painter: _PulseDotPainter(
+                t: reduceMotion ? 0 : pulse.value,
+                reduceMotion: reduceMotion,
               ),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: _T.sans(
-                  14,
-                  weight: FontWeight.w700,
-                  color: _C.accent,
-                  height: 1.28,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -2414,86 +2482,47 @@ class _TooShortNote extends StatelessWidget {
   }
 }
 
-class _RailColumn extends StatelessWidget {
-  const _RailColumn({required this.active, required this.phase});
-
-  final bool active;
-  final _Phase phase;
-
-  _RailAction? get _focus {
-    return switch (phase) {
-      _Phase.reminder => _RailAction.bell,
-      _Phase.favorite || _Phase.register => _RailAction.fish,
-      _Phase.description => _RailAction.info,
-      _Phase.share => _RailAction.share,
-      _Phase.report => _RailAction.flag,
-      _ => null,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final _RailAction? focus = _focus;
-    return AnimatedOpacity(
-      duration: _D.base,
-      opacity: focus == null ? 0.5 : 1,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          for (final _RailAction action in _RailAction.values)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: _RailDot(
-                action: action,
-                active: active,
-                focused: action == focus,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RailDot extends StatelessWidget {
-  const _RailDot({
+class _ActionGlyph extends StatelessWidget {
+  const _ActionGlyph({
     required this.action,
-    required this.active,
     required this.focused,
+    required this.accent,
   });
 
-  final _RailAction action;
-  final bool active;
+  final _RailAction? action;
   final bool focused;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
-    final String label = switch (action) {
-      _RailAction.bell => 'Напомнить',
-      _RailAction.fish => 'Избранное',
-      _RailAction.info => 'Описание',
-      _RailAction.share => 'Поделиться',
-      _RailAction.flag => 'Жалоба',
-    };
+    final _RailAction? item = action;
+    if (item == null) return const SizedBox.shrink();
     return Semantics(
-      label: label,
+      label: switch (item) {
+        _RailAction.bell => 'Напомнить',
+        _RailAction.fish => 'Избранное',
+        _RailAction.info => 'Описание',
+        _RailAction.share => 'Поделиться',
+        _RailAction.flag => 'Жалоба',
+      },
       excludeSemantics: true,
-      child: Container(
-        width: 30,
-        height: 30,
+      child: AnimatedContainer(
+        duration: _D.base,
+        curve: _E.main,
+        width: 34,
+        height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: focused ? _C.accent : _C.surface.withValues(alpha: 0.92),
+          color: accent ? _C.accent : _C.surface.withValues(alpha: 0.9),
           shape: BoxShape.circle,
-          border: Border.all(color: focused ? _C.accent : _C.hairline),
         ),
         child: CustomPaint(
-          size: const Size(14, 14),
+          size: const Size(16, 16),
           painter: _RailGlyphPainter(
-            action: action,
-            color: focused
+            action: item,
+            color: accent
                 ? _C.surface
-                : _C.muted.withValues(alpha: active ? 0.85 : 0.45),
+                : _C.muted.withValues(alpha: focused ? 0.9 : 0.5),
           ),
         ),
       ),
@@ -4056,8 +4085,8 @@ class _SearchOverlay extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               itemCount: results.length,
-              itemBuilder: (BuildContext context, int index) {
-                final _SearchItem item = results[index];
+              itemBuilder: (BuildContext context, int position) {
+                final _SearchItem item = results[position];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _SearchResultTile(
@@ -4918,4 +4947,34 @@ class _PixelQrPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ArrowDownPainter extends CustomPainter {
+  const _ArrowDownPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint stroke = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawLine(
+      Offset(size.width * 0.5, size.height * 0.14),
+      Offset(size.width * 0.5, size.height * 0.84),
+      stroke,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.24, size.height * 0.58)
+        ..lineTo(size.width * 0.5, size.height * 0.86)
+        ..lineTo(size.width * 0.76, size.height * 0.58),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArrowDownPainter old) => old.color != color;
 }
