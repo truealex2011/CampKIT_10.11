@@ -27,22 +27,18 @@ abstract final class _C {
   static const Color ink2 = Color(0xFF39424F);
   static const Color muted = Color(0xFF7B8798);
   static const Color accent = Color(0xFF0E6B76);
-  static const Color glow = Color(0xFF5FD4DE);
-  static const Color line = Color(0x1F0D1117);
-  static const Color lineStrong = Color(0x3D0D1117);
-  static const Color accentSoft = Color(0x140E6B76);
-  static const Color accentLine = Color(0x4D0E6B76);
-  static const Color glowSoft = Color(0x2E5FD4DE);
-  static const Color paperDeep = Color(0xFFEDEDE6);
-  static const Color lab = Color(0xFFEAF1F1);
-  static const Color mist = Color(0xFFE8EEF0);
-  static const Color sand = Color(0xFFF3ECDD);
+  static const Color accentSoft = Color(0xFFE7F1F2);
+  static const Color accentLine = Color(0xFFBBD8DB);
+  static const Color hairline = Color(0xFFE4E6E1);
+  static const Color skeleton = Color(0xFFE8EAE5);
+  static const Color bone = Color(0xFFDDDFD9);
+  static const Color shade = Color(0xFFF0F1ED);
 }
 
 abstract final class _R {
   static const double control = 14;
   static const double card = 24;
-  static const double sheet = 30;
+  static const double sheet = 28;
   static const double pill = 999;
 }
 
@@ -55,19 +51,17 @@ abstract final class _D {
   static const Duration demoTap = Duration(milliseconds: 1800);
   static const Duration demoSwipe = Duration(milliseconds: 2200);
   static const Duration demoHold = Duration(milliseconds: 2400);
+  static const Duration shimmer = Duration(milliseconds: 1600);
 }
 
 abstract final class _E {
   static const Cubic main = Cubic(0.2, 0.8, 0.2, 1);
+  static const Cubic soft = Cubic(0.32, 0.72, 0.24, 1);
 }
 
 abstract final class _T {
   static const List<String> _sans = <String>['Inter', 'Roboto', 'Segoe UI', 'Arial'];
-  static const List<String> _mono = <String>[
-    'Roboto Mono',
-    'Menlo',
-    'Courier New',
-  ];
+  static const List<String> _mono = <String>['Roboto Mono', 'Menlo', 'Courier New'];
 
   static TextStyle sans(
     double size, {
@@ -91,7 +85,7 @@ abstract final class _T {
     double size, {
     Color color = _C.muted,
     FontWeight weight = FontWeight.w600,
-    double letterSpacing = 0.9,
+    double letterSpacing = 0.8,
     double height = 1.15,
   }) {
     return TextStyle(
@@ -104,22 +98,6 @@ abstract final class _T {
       height: height,
     );
   }
-}
-
-abstract final class _S {
-  static const List<BoxShadow> card = <BoxShadow>[
-    BoxShadow(color: Color(0x140D1117), blurRadius: 30, offset: Offset(0, 14)),
-    BoxShadow(color: Color(0x0A0D1117), blurRadius: 6, offset: Offset(0, 2)),
-  ];
-  static const List<BoxShadow> floating = <BoxShadow>[
-    BoxShadow(color: Color(0x1A0D1117), blurRadius: 20, offset: Offset(0, 8)),
-  ];
-  static const List<BoxShadow> soft = <BoxShadow>[
-    BoxShadow(color: Color(0x120D1117), blurRadius: 10, offset: Offset(0, 4)),
-  ];
-  static const List<BoxShadow> button = <BoxShadow>[
-    BoxShadow(color: Color(0x2E0E6B76), blurRadius: 18, offset: Offset(0, 8)),
-  ];
 }
 
 enum _Phase {
@@ -163,10 +141,6 @@ enum _DemoKind {
   tapProfile,
   holdDrag,
 }
-
-enum _HintGlyph { none, up, left, tap }
-
-enum _HintTail { none, left, right, top }
 
 class _EventSpec {
   const _EventSpec({
@@ -243,108 +217,38 @@ const List<_SearchItem> _searchItems = <_SearchItem>[
   ),
 ];
 
-class _HintSpec {
-  const _HintSpec({
-    required this.text,
-    this.note,
-    this.glyph = _HintGlyph.none,
-    this.tail = _HintTail.none,
-  });
-
-  final String text;
-  final String? note;
-  final _HintGlyph glyph;
-  final _HintTail tail;
-}
+double _saturate(double value) => math.max(0.0, math.min(1.0, value));
 
 class _FeedGeometry {
   const _FeedGeometry({
     required this.size,
-    required this.card,
-    required this.railRect,
-    required this.railCenters,
-    required this.railHorizontal,
-    required this.panelHeight,
-    required this.trackLength,
-    required this.itemHeight,
+    required this.mediaHeight,
+    required this.action,
+    required this.trackTravel,
+    required this.trackThreshold,
   });
 
   final Size size;
-  final Rect card;
-  final Rect railRect;
-  final List<Offset> railCenters;
-  final bool railHorizontal;
-  final double panelHeight;
-  final double trackLength;
-  final double itemHeight;
+  final double mediaHeight;
+  final Offset action;
+  final double trackTravel;
+  final double trackThreshold;
 
-  Offset get bell => railCenters[0];
-  Offset get fish => railCenters[1];
-  Offset get info => railCenters[2];
-  Offset get share => railCenters[3];
-  Offset get flag => railCenters[4];
-  double get mediaBottom => card.top + card.height - panelHeight;
-  double get trackRight => railHorizontal ? fish.dx : railRect.right - 2;
-  double get travel => trackLength * 0.72;
-  double get threshold => trackLength * 0.4;
-
-  static _FeedGeometry of(Size size, double textScale) {
-    final double w = size.width;
-    final double h = size.height;
-    final double side = w < 340 ? 8 : (w < 420 ? 10 : 14);
-    final Rect card = Rect.fromLTRB(side, 2, w - side, h);
-    final bool short = h < 470;
-    final double panelBase = short ? 116 : (h < 600 ? 152 : 172);
-    final double panelHeight = math.min(
-      panelBase * (0.84 + 0.16 * textScale),
-      card.height * (short ? 0.42 : 0.46),
+  static _FeedGeometry of(Size size) {
+    final double media = math.min(
+      math.max(size.height * 0.6, 240),
+      size.height - 210,
     );
-    final double embedded = card.height - panelHeight;
-    double itemHeight = 48;
-    final bool horizontal = short || embedded < 300;
-    if (!horizontal) {
-      final double fit = (embedded - 66 - 16) / 5;
-      itemHeight = fit.clamp(40.0, 48.0);
-    }
-    final List<Offset> centers = <Offset>[];
-    late Rect railRect;
-    if (horizontal) {
-      final double bottom = card.top + embedded - 8;
-      final double top = bottom - itemHeight;
-      final double left = card.left + 10;
-      final double right = card.right - 10;
-      final double step = (right - left) / 5;
-      for (int i = 0; i < 5; i++) {
-        centers.add(Offset(left + step * (i + 0.5), top + itemHeight / 2));
-      }
-      railRect = Rect.fromLTRB(left, top, right, bottom);
-    } else {
-      final double right = card.right - 8;
-      final double left = right - 52;
-      final double bottom = card.top + embedded - 14;
-      const double gap = 4;
-      final double total = itemHeight * 5 + gap * 4;
-      final double top = math.max(card.top + 66, bottom - total);
-      for (int i = 0; i < 5; i++) {
-        centers.add(
-          Offset((left + right) / 2, top + i * (itemHeight + gap) + itemHeight / 2),
-        );
-      }
-      railRect = Rect.fromLTRB(left, top, right, card.top + embedded - 8);
-    }
-    final double trackLength = math.min(
-      horizontal ? 196 : 214,
-      math.max(140, w * 0.62),
+    final double track = math.min(
+      214.0,
+      math.max(132.0, size.width * 0.55),
     );
     return _FeedGeometry(
       size: size,
-      card: card,
-      railRect: railRect,
-      railCenters: centers,
-      railHorizontal: horizontal,
-      panelHeight: panelHeight,
-      trackLength: trackLength,
-      itemHeight: itemHeight,
+      mediaHeight: math.max(180, media),
+      action: Offset(size.width - 44, math.max(180, media) - 30),
+      trackTravel: track * 0.72,
+      trackThreshold: track * 0.4,
     );
   }
 }
@@ -367,10 +271,15 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   late final AnimationController _burst;
   late final AnimationController _hold;
   late final AnimationController _return;
+  late final AnimationController _pulse;
+  late final PageController _pages;
 
-  final PageController _mediaPages = PageController();
   final TextEditingController _searchText = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
+  final List<PageController> _mediaControllers = <PageController>[
+    PageController(),
+    PageController(),
+  ];
   final ValueNotifier<double> _dragX = ValueNotifier<double>(0);
 
   _Phase _phase = _Phase.intro;
@@ -383,6 +292,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   bool _overlayVisible = false;
   bool _overlayClosing = false;
   bool _introStarted = false;
+  bool _mountedExit = false;
 
   int _feedIndex = 0;
   final Map<int, int> _mediaIndex = <int, int>{0: 0, 1: 0};
@@ -415,14 +325,16 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _pages = PageController();
     _demo = AnimationController(vsync: this, duration: _D.demoSwipe);
     _overlay = AnimationController(vsync: this, duration: _D.base);
     _intro = AnimationController(vsync: this, duration: _D.stage);
     _burst = AnimationController(vsync: this, duration: _D.stage);
-    _hold = AnimationController(vsync: this, duration: _D.hold);
-    _return = AnimationController(vsync: this, duration: _D.stage)
+    _hold = AnimationController(vsync: this, duration: _D.hold)
+      ..addStatusListener(_onHoldStatus);
+    _return = AnimationController(vsync: this, duration: _D.base)
       ..addListener(_onReturnTick);
-    _hold.addStatusListener(_onHoldStatus);
+    _pulse = AnimationController(vsync: this, duration: _D.shimmer);
   }
 
   void _onReturnTick() {
@@ -442,15 +354,19 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _reduceMotion = reduce;
     if (reduce) {
       _demo.stop();
+      _pulse.stop();
       _demoActive = false;
       _overlay.value = 0;
       _hold.stop();
       _burst.stop();
       _return.stop();
       if (_intro.value != 1) _intro.value = 1;
-    } else if (!_introStarted && _phase == _Phase.intro) {
-      _introStarted = true;
-      _intro.forward(from: 0);
+    } else {
+      if (!_introStarted && _phase == _Phase.intro) {
+        _introStarted = true;
+        _intro.forward(from: 0);
+      }
+      if (!_pulse.isAnimating) _pulse.repeat();
     }
     _syncDemo();
   }
@@ -464,8 +380,12 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _burst.dispose();
     _hold.dispose();
     _return.dispose();
+    _pulse.dispose();
+    _pages.dispose();
+    for (final PageController controller in _mediaControllers) {
+      controller.dispose();
+    }
     _dragX.dispose();
-    _mediaPages.dispose();
     _searchText.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -531,9 +451,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   void _setPhase(_Phase phase) {
     if (!mounted || _phase == phase) return;
     _resume?.cancel();
-    if (phase == _Phase.finale && !_reduceMotion) {
-      _burst.forward(from: 0);
-    }
+    if (phase == _Phase.finale && !_reduceMotion) _burst.forward(from: 0);
     final bool wasSearch = _phase == _Phase.search;
     setState(() {
       _phase = phase;
@@ -598,9 +516,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   void _stopDemo() {
     _resume?.cancel();
     if (_demo.isAnimating) _demo.stop();
-    if (_demoActive && mounted) {
-      setState(() => _demoActive = false);
-    }
+    if (_demoActive && mounted) setState(() => _demoActive = false);
     _scheduleResume();
   }
 
@@ -608,7 +524,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _resume?.cancel();
     if (_reduceMotion) return;
     final _Phase phase = _phase;
-    _resume = Timer(const Duration(milliseconds: 1500), () {
+    _resume = Timer(const Duration(milliseconds: 1600), () {
       if (!mounted || _phase != phase) return;
       if (_isDone(phase) || _overlayBlocksDemo || _dragHeld) return;
       setState(() => _demoActive = true);
@@ -727,7 +643,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _demo.stop();
     _return.stop();
     final double width = MediaQuery.sizeOf(context).width;
-    final double trackLength = math.min(214.0, math.max(140.0, width * 0.62));
+    final double track = math.min(214.0, math.max(132.0, width * 0.55));
     setState(() {
       _dragHeld = true;
       _dragArmed = false;
@@ -736,8 +652,8 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
       _dragStartX = details.globalPosition.dx;
       _tooShort = false;
       _demoActive = false;
-      _travel = trackLength * 0.72;
-      _threshold = trackLength * 0.4;
+      _travel = track * 0.72;
+      _threshold = track * 0.4;
     });
     _dragX.value = 0;
     _hold.forward(from: 0);
@@ -800,16 +716,6 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _scheduleResume();
   }
 
-  void _onMediaChanged(int index) {
-    if (_feedIndex >= _mediaIndex.length) return;
-    _mediaIndex[_feedIndex] = index;
-    if (_phase == _Phase.media && index >= 1) {
-      if (!_mediaDone) _complete(_Phase.media);
-    } else {
-      setState(() {});
-    }
-  }
-
   void _showEvent(int index) {
     if (index < 0 || index >= _events.length) return;
     if (index == _feedIndex) return;
@@ -820,6 +726,19 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     } else {
       _syncDemo();
     }
+  }
+
+  void _jumpTo(int index) {
+    if (index < 0 || index >= _events.length) return;
+    if (index == _feedIndex) return;
+    _stopDemo();
+    if (_reduceMotion) {
+      _pages.jumpToPage(index);
+    } else {
+      _pages.animateToPage(index, duration: _D.express, curve: _E.soft);
+    }
+    setState(() => _feedIndex = index);
+    if (_phase == _Phase.swipeFeed) _setPhase(_Phase.media);
   }
 
   List<_SearchItem> _results() {
@@ -922,7 +841,6 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   void _finishFinale() {
     _resume?.cancel();
     _setPhase(_Phase.finale);
-    if (!_reduceMotion) _burst.forward(from: 0);
   }
 
   void _trySettingsRow() {
@@ -941,113 +859,71 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
       color: _C.paper,
       child: DefaultTextStyle(
         style: _T.sans(14, color: _C.ink2),
-        child: SafeArea(
-          minimum: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final double width = constraints.maxWidth;
-              final double height = constraints.maxHeight;
-              return Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: Column(
-                      children: <Widget>[
-                        _Header(
-                          phase: _phase,
-                          step: _stepNumber,
-                          total: _stepCount,
-                          done: _isDone(_phase),
-                          onSkip: () =>
-                              _finish(ParticipantOnboardingResult.skipped),
-                          onNext: _advance,
-                        ),
-                        const SizedBox(height: 6),
-                        Expanded(child: _buildBody(width, textScale)),
-                      ],
-                    ),
-                  ),
-                  if (_overlayVisible) _buildSheetLayer(width, height, textScale),
-                ],
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double width = constraints.maxWidth;
+            final double height = constraints.maxHeight;
+            if (width <= 0 || height <= 0) return const SizedBox.shrink();
+            final Size size = Size(width, height);
+            if (_phase == _Phase.intro) {
+              return SafeArea(child: _buildIntro(size, textScale));
+            }
+            if (_phase == _Phase.finale) {
+              return PopScope(
+                canPop: false,
+                child: SafeArea(child: _buildFinale(size, textScale)),
               );
-            },
-          ),
+            }
+            return Stack(
+              children: <Widget>[
+                Positioned.fill(child: _buildFeed(size, textScale)),
+                if (_overlayVisible)
+                  _buildSheetLayer(width, height, textScale),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildBody(double width, double textScale) {
-    if (_phase == _Phase.intro) {
-      return _buildIntro(width, textScale);
-    }
-    if (_phase == _Phase.finale) {
-      return _buildFinale(width, textScale);
-    }
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final Size area = Size(constraints.maxWidth, constraints.maxHeight);
-        if (area.width >= 720) return _buildWide(area, textScale);
-        final double feedWidth = math.min(area.width, 520);
-        return Center(
-          child: SizedBox(
-            width: feedWidth,
-            height: area.height,
-            child: _buildFeedPage(Size(feedWidth, area.height), textScale),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildWide(Size area, double textScale) {
-    final double panelWidth = math.min(area.width * 0.4, 360);
-    final double feedWidth = math.min(area.width - panelWidth - 16, 560);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Expanded(
-          child: Center(
-            child: SizedBox(
-              width: feedWidth,
-              height: area.height,
-              child: _buildFeedPage(Size(feedWidth, area.height), textScale),
-            ),
-          ),
-        ),
-        SizedBox(
-          width: panelWidth,
-          height: area.height,
-          child: _buildSidePanel(textScale),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeedPage(Size size, double textScale) {
-    final _FeedGeometry geo = _FeedGeometry.of(size, textScale);
+  Widget _buildFeed(Size size, double textScale) {
+    final _FeedGeometry geo = _FeedGeometry.of(size);
+    final bool done = _isDone(_phase);
     return Stack(
-      clipBehavior: Clip.hardEdge,
       children: <Widget>[
-        Positioned.fromRect(
-          rect: geo.card,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onVerticalDragEnd: (DragEndDetails details) {
-              final double velocity = details.primaryVelocity ?? 0;
-              if (velocity < -220) {
-                _showEvent(_feedIndex + 1);
-              } else if (velocity > 220) {
-                _showEvent(_feedIndex - 1);
-              }
+        const Positioned.fill(child: ColoredBox(color: _C.paper)),
+        Positioned.fill(
+          child: PageView.builder(
+            controller: _pages,
+            scrollDirection: Axis.vertical,
+            itemCount: _events.length,
+            onPageChanged: (int index) {
+              if (index == _feedIndex) return;
+              setState(() => _feedIndex = index);
+              if (_phase == _Phase.swipeFeed) _setPhase(_Phase.media);
             },
-            child: _buildCard(geo, textScale),
+            itemBuilder: (BuildContext context, int index) {
+              return _FeedSlide(
+                event: _events[index],
+                index: index,
+                active: index == _feedIndex,
+                done: done && index == _feedIndex,
+                reduceMotion: _reduceMotion,
+                pulse: _pulse,
+                feedController: _pages,
+                mediaController: _mediaControllers[index],
+                mediaIndex: _mediaIndex[index] ?? 0,
+                onMediaChanged: (int value) => _onMediaChangedFor(index, value),
+                reveal: _isDone(_phase),
+                focusLabel: index == _feedIndex ? _focusLabel() : '',
+                tooShort: _tooShort && index == _feedIndex,
+                phase: _phase,
+              );
+            },
           ),
         ),
-        Positioned.fromRect(
-          rect: geo.railRect,
-          child: _buildRail(geo, textScale),
-        ),
-        if (!_reduceMotion && _demoActive && !_overlayBlocksDemo)
+        if (!_reduceMotion && _demoActive && !_overlayBlocksDemo && !done)
           Positioned.fill(
             child: IgnorePointer(
               child: RepaintBoundary(
@@ -1055,10 +931,11 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                   animation: _demo,
                   builder: (BuildContext context, Widget? child) {
                     return CustomPaint(
-                      painter: _TouchDemoPainter(
+                      painter: _HandPainter(
                         kind: _demoKindFor(_phase),
                         t: _demo.value,
-                        geo: geo,
+                        size: size,
+                        mediaHeight: geo.mediaHeight,
                       ),
                     );
                   },
@@ -1066,671 +943,311 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               ),
             ),
           ),
-        if (_phase == _Phase.settings && _settingsVisited)
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: geo.panelHeight + 12,
-            child: _FinishCta(onTap: _finishFinale),
-          ),
-        if (_phase == _Phase.register && _dragHeld)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _HoldTrack(
-                hold: _hold,
-                dragX: _dragX,
-                travel: _travel,
-                threshold: _threshold,
-                anchor: geo.fish,
-                past: _dragPast,
-                ready: _holdReady,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    _C.paper.withValues(alpha: 0.92),
+                    _C.paper.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
           ),
-        if (_phase != _Phase.settings)
-          _buildHint(geo, textScale),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            minimum: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            child: _TopBar(
+              step: _stepNumber,
+              total: _stepCount,
+              done: done,
+              showNext: done &&
+                  _phase != _Phase.swipeFeed &&
+                  _phase != _Phase.settings &&
+                  _phase != _Phase.intro &&
+                  _phase != _Phase.finale,
+              onSkip: () => _finish(ParticipantOnboardingResult.skipped),
+              onNext: _advance,
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 150,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: <Color>[
+                    _C.paper.withValues(alpha: 0.96),
+                    _C.paper.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: _FocusedAction(
+                  phase: _phase,
+                  done: done,
+                  reduceMotion: _reduceMotion,
+                  hold: _hold,
+                  dragX: _dragX,
+                  travel: geo.trackTravel,
+                  threshold: geo.trackThreshold,
+                  past: _dragPast,
+                  holdReady: _holdReady,
+                  onTap: _onActionTap,
+                  onLongPressDown: _onLongPressDown,
+                  onLongPressStart: _onLongPressStart,
+                  onLongPressMove: _onLongPressMove,
+                  onLongPressEnd: _onLongPressEnd,
+                  onLongPressCancel: _onLongPressCancel,
+                  onNext: _phase == _Phase.settings ? _finishFinale : _advance,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_dragHeld && _phase == _Phase.register)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 96,
+            child: IgnorePointer(
+              child: Center(
+                child: _HoldTrack(
+                  hold: _hold,
+                  dragX: _dragX,
+                  travel: geo.trackTravel,
+                  threshold: geo.trackThreshold,
+                  past: _dragPast,
+                  ready: _holdReady,
+                ),
+              ),
+            ),
+          ),
         if (_profileOpen)
-          Positioned.fill(child: _buildProfileOverlay(geo, textScale)),
+          Positioned.fill(
+            child: _phase == _Phase.search
+                ? Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                    child: _SearchOverlay(
+                      controller: _searchText,
+                      focusNode: _searchFocus,
+                      query: _searchQuery,
+                      results: _results(),
+                      selected: _foundEvent,
+                      canSelect: true,
+                      onChanged: _onSearchChanged,
+                      onSelect: _selectResult,
+                      onClose: _leaveSearch,
+                    ),
+                  )
+                : _ProfileOverlay(
+                    selected: _tab,
+                    onTab: _selectTab,
+                    onClose: _closeProfile,
+                    onTicket: _openTicket,
+                    onRetry: _trySettingsRow,
+                    canOpenTicket: _phase == _Phase.profile,
+                    canRetry: _phase == _Phase.settings,
+                    ticketOpened: _ticketOpened,
+                    settingsVisited: _settingsVisited,
+                    canSettingsTab: _phase == _Phase.settings,
+                  ),
+          ),
       ],
     );
   }
 
-  Widget _buildCard(_FeedGeometry geo, double textScale) {
-    final _EventSpec event = _events[_feedIndex];
-    final int mediaIndex = _mediaIndex[_feedIndex] ?? 0;
-    final bool registered = _registered;
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.all(Radius.circular(_R.card)),
-        boxShadow: _S.card,
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.all(Radius.circular(_R.card)),
-        child: SizedBox.expand(
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    _buildMedia(),
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      child: _CircleButton(
-                        semanticLabel: 'Профиль',
-                        onTap: _onProfilePressed,
-                        enabled:
-                            _phase == _Phase.profile || _phase == _Phase.settings,
-                        highlight: _phase == _Phase.profile && !_profileOpen,
-                        child: const _Avatar(size: 22),
-                      ),
-                    ),
-                    Positioned(
-                      right: 10,
-                      top: 10,
-                      child: _CircleButton(
-                        semanticLabel: 'Поиск',
-                        onTap: _onSearchPressed,
-                        enabled: _phase == _Phase.search,
-                        highlight: _phase == _Phase.search,
-                        child: _GlyphIcon(
-                          painter: _SearchGlyphPainter(
-                            color: _phase == _Phase.search ? _C.ink : _C.muted,
-                          ),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 12,
-                      child: _MediaIndicator(
-                        count: event.scenes.length,
-                        index: mediaIndex,
-                        textScale: textScale,
-                      ),
-                    ),
-                    if (registered)
-                      const Positioned(right: 14, bottom: 48, child: _TicketPin()),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: geo.panelHeight,
-                child: _buildPanel(geo, textScale, event, registered),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMedia() {
-    final _EventSpec event = _events[_feedIndex];
-    return PageView.builder(
-      controller: _mediaPages,
-      itemCount: event.scenes.length,
-      physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
-      onPageChanged: _onMediaChanged,
-      itemBuilder: (BuildContext context, int index) {
-        return _SceneArt(kind: event.scenes[index]);
-      },
-    );
-  }
-
-  Widget _buildPanel(
-    _FeedGeometry geo,
-    double textScale,
-    _EventSpec event,
-    bool registered,
-  ) {
-    final bool compact = geo.panelHeight < 160;
-    final String? status = switch (_phase) {
-      _Phase.favorite when _favorite => 'Сохранено в избранном',
-      _Phase.register when registered => 'Ты записан. Билет в профиле',
-      _Phase.reminder when _reminded => _reminder == _ReminderChoice.hour
-          ? 'Напомним за час'
-          : 'Напомним за день',
-      _Phase.description when _descriptionRead => 'Описание прочитано',
-      _Phase.share when _shared => 'Ссылка готова к отправке',
-      _Phase.report when _reported => 'Жалоба отмечена',
-      _Phase.register when _tooShort => 'Нужно удержание: тап не записывает',
-      _ => null,
-    };
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, compact ? 10 : 12, 16, compact ? 8 : 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Flexible(child: _CategoryChip(text: event.category)),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  registered ? 'Ты записан' : 'Учебный режим',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _T.mono(
-                    compact ? 9.5 : 10,
-                    color: registered ? _C.accent : _C.muted,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            event.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: _T.sans(
-              compact ? 18 : 21,
-              weight: FontWeight.w800,
-              height: 1.12,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${event.organizer} · ${event.place}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _T.sans(
-              compact ? 11.5 : 12.5,
-              color: _C.muted,
-              weight: FontWeight.w600,
-            ),
-          ),
-          if (!compact) ...<Widget>[
-            const SizedBox(height: 6),
-            Text(
-              event.blurb,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: _T.sans(13, color: _C.ink2, height: 1.32),
-            ),
-          ],
-          if (status != null && !geo.railHorizontal) ...<Widget>[
-            const SizedBox(height: 7),
-            _StatusLine(text: status),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRail(_FeedGeometry geo, double textScale) {
-    final Widget content = geo.railHorizontal
-        ? Row(
-            children: <Widget>[
-              for (final _RailAction action in _RailAction.values)
-                Expanded(child: _buildRailSlot(action, geo, true)),
-            ],
-          )
-        : Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: <Widget>[
-              for (final _RailAction action in _RailAction.values)
-                _buildRailSlot(action, geo, false),
-            ],
-          );
-    return content;
-  }
-
-  Widget _buildRailSlot(_RailAction action, _FeedGeometry geo, bool horizontal) {
-    final bool enabled = _railEnabled(action);
-    final bool highlight = enabled && _phase != _Phase.register;
-    final Widget icon = switch (action) {
-      _RailAction.bell => _GlyphIcon(
-          painter: _BellGlyphPainter(
-            color: enabled
-                ? (_reminded ? _C.accent : _C.ink)
-                : _C.muted.withValues(alpha: 0.5),
-            active: _reminded,
-          ),
-          size: 21,
-        ),
-      _RailAction.fish => _RailFish(
-          enabled: enabled,
-          active: _favorite,
-          registered: _registered,
-          armed: _dragArmed,
-          hold: _hold,
-          dragX: _dragX,
-          burst: _burst,
-          burstPhase: _phase,
-          reduceMotion: _reduceMotion,
-        ),
-      _RailAction.info => _GlyphIcon(
-          painter: _InfoGlyphPainter(
-            color: enabled
-                ? (_descriptionRead ? _C.accent : _C.ink)
-                : _C.muted.withValues(alpha: 0.5),
-          ),
-          size: 21,
-        ),
-      _RailAction.share => _GlyphIcon(
-          painter: _ShareGlyphPainter(
-            color: enabled
-                ? (_shared ? _C.accent : _C.ink)
-                : _C.muted.withValues(alpha: 0.5),
-          ),
-          size: 21,
-        ),
-      _RailAction.flag => _GlyphIcon(
-          painter: _FlagGlyphPainter(
-            color: enabled
-                ? (_reported ? _C.accent : _C.ink)
-                : _C.muted.withValues(alpha: 0.5),
-          ),
-          size: 21,
-        ),
-    };
-    final bool showCount = action == _RailAction.fish && !horizontal;
-    return _RailButton(
-      label: switch (action) {
-        _RailAction.bell => 'Напомнить о событии',
-        _RailAction.fish => 'Рыбка: избранное и запись на событие',
-        _RailAction.info => 'Описание события',
-        _RailAction.share => 'Поделиться событием',
-        _RailAction.flag => 'Пожаловаться на событие',
-      },
-      enabled: enabled,
-      height: geo.itemHeight,
-      highlight: highlight && !_reduceMotion,
-      demo: _demo,
-      demoActive: _demoActive && highlight,
-      onTap: () => _onRailTap(action),
-      onLongPressDown: action == _RailAction.fish && _phase == _Phase.register
-          ? _onLongPressDown
-          : null,
-      onLongPressStart: action == _RailAction.fish && _phase == _Phase.register
-          ? _onLongPressStart
-          : null,
-      onLongPressMove: action == _RailAction.fish && _phase == _Phase.register
-          ? _onLongPressMove
-          : null,
-      onLongPressEnd: action == _RailAction.fish && _phase == _Phase.register
-          ? _onLongPressEnd
-          : null,
-      onLongPressCancel: action == _RailAction.fish && _phase == _Phase.register
-          ? _onLongPressCancel
-          : null,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          icon,
-          if (showCount)
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Text(
-                _favorite ? '129' : '128',
-                style: _T.mono(
-                  8.5,
-                  color: enabled ? _C.ink2 : _C.muted,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          if (horizontal)
-            Text(
-              switch (action) {
-                _RailAction.bell => 'Напомнить',
-                _RailAction.fish => 'Рыбка',
-                _RailAction.info => 'Описание',
-                _RailAction.share => 'Поделиться',
-                _RailAction.flag => 'Жалоба',
-              },
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _T.mono(
-                8,
-                color: enabled ? _C.ink2 : _C.muted,
-                letterSpacing: 0.1,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  bool _railEnabled(_RailAction action) {
-    return switch (action) {
-      _RailAction.bell => _phase == _Phase.reminder,
-      _RailAction.fish =>
-        _phase == _Phase.favorite || _phase == _Phase.register,
-      _RailAction.info => _phase == _Phase.description,
-      _RailAction.share => _phase == _Phase.share,
-      _RailAction.flag => _phase == _Phase.report,
+  String _focusLabel() {
+    return switch (_phase) {
+      _Phase.swipeFeed => 'Смахни вверх — откроется второе событие',
+      _Phase.media => 'Смахни влево — у события есть фото и видео',
+      _Phase.favorite => 'Нажми на рыбку — сохраним событие в избранное',
+      _Phase.register => 'Удерживай кнопку и веди влево — так ты записываешься',
+      _Phase.reminder => 'Нажми на колокольчик и выбери, когда напомнить',
+      _Phase.description => 'Открой описание: программа, место и условия',
+      _Phase.share => 'Поделись событием с друзьями',
+      _Phase.report => 'Сообщи, если с событием что-то не так',
+      _Phase.search => 'Найди событие поиском: подойдёт запрос «робо»',
+      _Phase.profile => 'Открой профиль: там билеты и избранное',
+      _Phase.settings => 'Найди в настройках «Пройти обучение заново»',
+      _ => '',
     };
   }
 
-  void _onRailTap(_RailAction action) {
-    if (!_railEnabled(action)) return;
-    switch (action) {
-      case _RailAction.bell:
-        _openSheet(_SheetKind.reminder);
-      case _RailAction.fish:
-        _onFishTap();
-      case _RailAction.info:
-        _openSheet(_SheetKind.description);
-      case _RailAction.share:
-        _openSheet(_SheetKind.share);
-      case _RailAction.flag:
-        _openSheet(_SheetKind.report);
+  void _onActionTap() {
+    if (_isDone(_phase)) {
+      if (_phase == _Phase.settings) {
+        _finishFinale();
+      } else {
+        _advance();
+      }
+      return;
     }
-  }
-
-  _HintSpec? _hintSpec(_Phase phase) {
-    return switch (phase) {
-      _Phase.swipeFeed => const _HintSpec(
-        text: 'Смахни вверх — откроется следующее мероприятие',
-        note: 'Короткое движение вверх по карточке',
-        glyph: _HintGlyph.up,
-      ),
-      _Phase.media => const _HintSpec(
-        text: 'Смахни влево — у события могут быть фото и видео',
-        note: 'Счётчик снизу покажет, где ты',
-        glyph: _HintGlyph.left,
-      ),
-      _Phase.favorite => const _HintSpec(
-        text: 'Нажми на рыбку — сохранишь событие в избранном',
-        note: 'Короткий тап по рыбке справа',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.register => const _HintSpec(
-        text: 'Удерживай рыбку, затем проведи влево и отпусти у отметки',
-        note: 'Около секунды на удержание, отпускай только после «Отпусти»',
-        glyph: _HintGlyph.left,
-      ),
-      _Phase.reminder => const _HintSpec(
-        text: 'Нажми на колокольчик — выбери, когда напомнить',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.description => const _HintSpec(
-        text: 'Открой описание — здесь программа, место и условия участия',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.share => const _HintSpec(
-        text: 'Нажми «Поделиться», чтобы пригласить друзей',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.report => const _HintSpec(
-        text: 'Если с событием что-то не так — сообщи об этом',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.search => const _HintSpec(
-        text: 'Нажми на лупу — найди интересное событие',
-        note: 'В поиске подойдёт запрос «робо»',
-        glyph: _HintGlyph.tap,
-      ),
-      _Phase.profile => const _HintSpec(
-        text: 'Открой профиль — здесь твои билеты и сохранённые события',
-        glyph: _HintGlyph.tap,
-      ),
-      _ => null,
-    };
-  }
-
-  Rect _safeRect(double left, double top, double right, double bottom) {
-    final double l = math.min(left, right - 120);
-    final double t = math.min(top, bottom - 64);
-    return Rect.fromLTRB(l, t, math.max(right, l + 120), math.max(bottom, t + 64));
-  }
-
-  _HintArea _hintArea(_FeedGeometry geo, _HintSpec spec) {
-    final Rect card = geo.card;
-    final double leftEdge = card.left + 12;
-    final double rightEdge = card.right - 12;
-    final double contentTop = card.top + 58;
-    final double freeBottom = geo.railHorizontal
-        ? geo.railRect.top - 8
-        : card.top + card.height - geo.panelHeight - 12;
-    final double railEdge = geo.railHorizontal
-        ? rightEdge
-        : geo.railRect.left - 14;
-    final double top = card.top + (freeBottom - card.top) * 0.44;
     switch (_phase) {
       case _Phase.swipeFeed:
-        return _HintArea(
-          rect: _safeRect(leftEdge, contentTop, rightEdge, freeBottom),
-          align: Alignment.bottomCenter,
-          tail: _HintTail.bottom,
-        );
+        _jumpTo(_feedIndex + 1);
       case _Phase.media:
-        return _HintArea(
-          rect: _safeRect(leftEdge, top, rightEdge, freeBottom),
-          align: Alignment.topCenter,
-          tail: _HintTail.top,
-        );
+        _nextMedia();
       case _Phase.favorite:
       case _Phase.register:
-        if (geo.railHorizontal) {
-          return _HintArea(
-            rect: _safeRect(leftEdge, contentTop, rightEdge, freeBottom),
-            align: Alignment.bottomCenter,
-            tail: _HintTail.bottom,
-          );
-        }
-        final double anchor = _phase == _Phase.favorite
-            ? geo.fish.dy - 32
-            : geo.fish.dy + 44;
-        return _HintArea(
-          rect: _safeRect(leftEdge, anchor, railEdge, freeBottom),
-          align: Alignment.topRight,
-          tail: _HintTail.top,
-        );
+        _onFishTap();
       case _Phase.reminder:
+        _openSheet(_SheetKind.reminder);
       case _Phase.description:
+        _openSheet(_SheetKind.description);
       case _Phase.share:
+        _openSheet(_SheetKind.share);
       case _Phase.report:
-        if (geo.railHorizontal) {
-          return _HintArea(
-            rect: _safeRect(leftEdge, contentTop, rightEdge, freeBottom),
-            align: Alignment.bottomCenter,
-            tail: _HintTail.bottom,
-          );
-        }
-        final Offset target = switch (_phase) {
-          _Phase.reminder => geo.bell,
-          _Phase.description => geo.info,
-          _Phase.share => geo.share,
-          _ => geo.flag,
-        };
-        return _HintArea(
-          rect: _safeRect(
-            leftEdge,
-            math.max(contentTop, target.dy - 70),
-            railEdge,
-            math.min(freeBottom, target.dy + 70),
-          ),
-          align: Alignment.centerRight,
-          tail: _HintTail.right,
-        );
+        _openSheet(_SheetKind.report);
       case _Phase.search:
+        _onSearchPressed();
       case _Phase.profile:
-        return _HintArea(
-          rect: _safeRect(
-            leftEdge,
-            contentTop,
-            math.max(leftEdge + 120, railEdge),
-            math.min(freeBottom, contentTop + 152),
-          ),
-          align: Alignment.topLeft,
-          tail: _HintTail.top,
-        );
       case _Phase.settings:
+        _onProfilePressed();
       case _Phase.intro:
       case _Phase.finale:
-        return _HintArea(
-          rect: _safeRect(leftEdge, contentTop, rightEdge, freeBottom),
-          align: Alignment.topCenter,
-          tail: _HintTail.none,
-        );
-    }
-  }
-
-  Widget _buildHint(_FeedGeometry geo, double textScale) {
-    final _HintSpec? spec = _hintSpec(_phase);
-    if (spec == null) return const SizedBox.shrink();
-    final _HintArea area = _hintArea(geo, spec);
-    final bool showAlt = _phase == _Phase.swipeFeed ||
-        _phase == _Phase.media ||
-        _phase == _Phase.register;
-    return Positioned.fromRect(
-      rect: area.rect,
-      child: Align(
-        alignment: area.align,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: math.min(area.rect.width, 268),
-            maxHeight: area.rect.height,
-          ),
-          child: _HintCard(
-            spec: spec,
-            tail: area.tail,
-            textScale: textScale,
-            reduceMotion: _reduceMotion,
-            demoActive: _demoActive,
-            demo: _demo,
-            onAlt: showAlt ? _onAccessibleAlt : null,
-            altLabel: switch (_phase) {
-              _Phase.swipeFeed => 'Сменить событие',
-              _Phase.media => 'Следующее медиа',
-              _Phase.register => 'Подтвердить запись',
-              _ => null,
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _onAccessibleAlt() {
-    switch (_phase) {
-      case _Phase.swipeFeed:
-        _accessibleNextEvent();
-      case _Phase.media:
-        _accessibleNextMedia();
-      case _Phase.register:
-        if (_registered) {
-          _advance();
-        } else {
-          _complete(_Phase.register);
-        }
-      default:
         break;
     }
   }
 
-  void _accessibleNextEvent() {
-    _showEvent(_feedIndex + 1);
-  }
-
-  void _accessibleNextMedia() {
+  void _nextMedia() {
     final int current = _mediaIndex[_feedIndex] ?? 0;
     final int count = _events[_feedIndex].scenes.length;
     if (current >= count - 1) return;
     _stopDemo();
-    _mediaPages.animateToPage(
+    _mediaControllers[_feedIndex]!.animateToPage(
       current + 1,
-      duration: _D.base,
-      curve: _E.main,
+      duration: _D.express,
+      curve: _E.soft,
     );
   }
 
-  Widget _buildIntro(double width, double textScale) {
-    final double artHeight = math.min(
-      math.max(140, MediaQuery.sizeOf(context).height * 0.3),
-      260,
-    );
+  void _onMediaChangedFor(int index, int value) {
+    _mediaIndex[index] = value;
+    if (_phase == _Phase.media && index == _feedIndex && value >= 1) {
+      if (!_mediaDone) _complete(_Phase.media);
+    } else {
+      setState(() {});
+    }
+  }
+
+  Widget _buildIntro(Size size, double textScale) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _IntroArt(
-            controller: _intro,
-            height: artHeight,
-            reduceMotion: _reduceMotion,
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              const _FishMark(size: 26),
+              const SizedBox(width: 10),
+              Text(
+                'CampusLife',
+                style: _T.sans(15, weight: FontWeight.w800, letterSpacing: -0.2),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 34),
+          _IntroArt(controller: _intro, reduceMotion: _reduceMotion),
+          const SizedBox(height: 28),
           Text(
             'Твой кампус — в одном движении',
             style: _T.sans(
-              textScale > 1.15 ? 26 : 30,
+              textScale > 1.15 ? 27 : 32,
               weight: FontWeight.w800,
-              height: 1.08,
-              letterSpacing: -0.6,
+              height: 1.1,
+              letterSpacing: -0.7,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
-            'Попробуем основные действия на учебном событии. Это займёт пару минут.',
-            style: _T.sans(15, color: _C.ink2, height: 1.42),
+            'Одиннадцать коротких шагов на учебном событии. Всё можно пропустить.',
+            style: _T.sans(15, color: _C.ink2, height: 1.45),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           const _MetaRow(),
-          const SizedBox(height: 22),
+          const SizedBox(height: 30),
           _PrimaryButton(
             label: 'Попробовать',
             onTap: () => _setPhase(_Phase.swipeFeed),
           ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () => _finish(ParticipantOnboardingResult.skipped),
-              style: TextButton.styleFrom(
-                minimumSize: const Size(120, 48),
-                foregroundColor: _C.ink2,
-              ),
-              child: Text(
-                'Пропустить',
-                style: _T.sans(14, weight: FontWeight.w700, color: _C.ink2),
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _buildFinale(double width, double textScale) {
-    final double artHeight = math.min(
-      math.max(150, MediaQuery.sizeOf(context).height * 0.32),
-      280,
-    );
+  Widget _buildFinale(Size size, double textScale) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _FinaleArt(controller: _burst, height: artHeight),
-          const SizedBox(height: 20),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              const _FishMark(size: 26),
+              const SizedBox(width: 10),
+              Text(
+                'CampusLife',
+                style: _T.sans(15, weight: FontWeight.w800, letterSpacing: -0.2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 34),
+          _FinaleArt(controller: _burst, reduceMotion: _reduceMotion),
+          const SizedBox(height: 28),
           Text(
             'Готово. Теперь ты в потоке',
             style: _T.sans(
-              textScale > 1.15 ? 26 : 30,
+              textScale > 1.15 ? 27 : 32,
               weight: FontWeight.w800,
-              height: 1.08,
-              letterSpacing: -0.6,
+              height: 1.1,
+              letterSpacing: -0.7,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
-            'Листай события, сохраняй интересное и встречайся с друзьями.',
-            style: _T.sans(15, color: _C.ink2, height: 1.42),
+            'Листай события, сохраняй интересное и не теряй свои билеты.',
+            style: _T.sans(15, color: _C.ink2, height: 1.45),
           ),
-          const SizedBox(height: 20),
-          const _FinaleSummary(),
           const SizedBox(height: 22),
+          const _FinaleSummary(),
+          const SizedBox(height: 30),
           _PrimaryButton(
             label: 'Перейти к событиям',
             onTap: () => _finish(ParticipantOnboardingResult.completed),
@@ -1740,64 +1257,10 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSidePanel(double textScale) {
-    final _HintSpec? spec = _hintSpec(_phase);
-    final bool done = _isDone(_phase);
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'ОБУЧЕНИЕ УЧАСТНИКА',
-              style: _T.mono(10, color: _C.muted, letterSpacing: 1.6),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Учебный экран ${_stepNumber.toString().padLeft(2, '0')} из $_stepCount',
-              style: _T.sans(22, weight: FontWeight.w800, height: 1.15),
-            ),
-            const SizedBox(height: 12),
-            if (spec != null)
-              _HintCard(
-                spec: spec,
-                tail: _HintTail.none,
-                textScale: textScale,
-                reduceMotion: _reduceMotion,
-                demoActive: _demoActive,
-                demo: _demo,
-                onAlt: _phase == _Phase.swipeFeed || _phase == _Phase.media
-                    ? _onAccessibleAlt
-                    : null,
-                altLabel: _phase == _Phase.swipeFeed
-                    ? 'Сменить событие'
-                    : _phase == _Phase.media
-                        ? 'Следующее медиа'
-                        : _phase == _Phase.register
-                            ? 'Подтвердить запись'
-                            : null,
-              ),
-            const SizedBox(height: 14),
-            if (done)
-              _PrimaryButton(label: 'Далее', onTap: _advance)
-            else
-              Text(
-                'Выполни действие на карточке — «Далее» появится после него.',
-                style: _T.sans(12.5, color: _C.muted, height: 1.35),
-              ),
-            const SizedBox(height: 18),
-            _SideLegend(phase: _phase),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSheetLayer(double width, double height, double textScale) {
-    final double maxSheet = math.max(200, height - 108);
+    final double maxSheet = math.max(200, height - 120);
     return Positioned(
-      top: 52,
+      top: 56,
       left: 0,
       right: 0,
       bottom: 0,
@@ -1805,19 +1268,16 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
         animation: _overlay,
         builder: (BuildContext context, Widget? child) {
           final double t = Curves.easeOutCubic.transform(
-            _overlay.value.clamp(0.0, 1.0),
+            _saturate(_overlay.value),
           );
           return Stack(
             children: <Widget>[
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _searchFocus.unfocus();
-                    _closeSheet();
-                  },
+                  onTap: _closeSheet,
                   child: ColoredBox(
-                    color: _C.ink.withValues(alpha: 0.26 * t),
+                    color: _C.ink.withValues(alpha: 0.18 * t),
                   ),
                 ),
               ),
@@ -1827,7 +1287,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                   child: Opacity(
                     opacity: t,
                     child: Transform.translate(
-                      offset: Offset(0, (1 - t) * 48),
+                      offset: Offset(0, (1 - t) * 44),
                       child: _buildSheetContent(width, maxSheet, textScale),
                     ),
                   ),
@@ -1872,7 +1332,10 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
       _SheetKind.none => const SizedBox.shrink(),
     };
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: math.min(width, 560), maxHeight: maxSheet),
+      constraints: BoxConstraints(
+        maxWidth: math.min(width, 560),
+        maxHeight: maxSheet,
+      ),
       child: body,
     );
   }
@@ -1903,700 +1366,379 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     if (_reportReason == null || _reported) return;
     _complete(_Phase.report);
   }
-
-  Widget _buildProfileOverlay(_FeedGeometry geo, double textScale) {
-    if (_phase == _Phase.search) {
-      return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: _SearchOverlay(
-          controller: _searchText,
-          focusNode: _searchFocus,
-          query: _searchQuery,
-          results: _results(),
-          selected: _foundEvent,
-          canSelect: _phase == _Phase.search,
-          onChanged: _onSearchChanged,
-          onSelect: _selectResult,
-          onClose: _leaveSearch,
-        ),
-      );
-    }
-    final bool settingsPhase = _phase == _Phase.settings;
-    return _ProfileOverlay(
-      selected: _tab,
-      onTab: _selectTab,
-      onClose: _closeProfile,
-      onTicket: _openTicket,
-      onRetry: _trySettingsRow,
-      canOpenTicket: _phase == _Phase.profile,
-      canRetry: settingsPhase,
-      ticketOpened: _ticketOpened,
-      settingsVisited: _settingsVisited,
-      canSettingsTab: settingsPhase,
-    );
-  }
 }
 
-class _RailButton extends StatelessWidget {
-  const _RailButton({
-    required this.label,
-    required this.enabled,
-    required this.height,
-    required this.highlight,
-    required this.demo,
-    required this.demoActive,
-    required this.onTap,
-    required this.child,
-    this.onLongPressDown,
-    this.onLongPressStart,
-    this.onLongPressMove,
-    this.onLongPressEnd,
-    this.onLongPressCancel,
-  });
 
-  final String label;
-  final bool enabled;
-  final double height;
-  final bool highlight;
-  final Animation<double> demo;
-  final bool demoActive;
-  final VoidCallback onTap;
-  final Widget child;
-  final GestureLongPressDownCallback? onLongPressDown;
-  final GestureLongPressStartCallback? onLongPressStart;
-  final GestureLongPressMoveUpdateCallback? onLongPressMove;
-  final GestureLongPressEndCallback? onLongPressEnd;
-  final GestureLongPressCancelCallback? onLongPressCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPressDown: onLongPressDown,
-        onLongPressStart: onLongPressStart,
-        onLongPressMoveUpdate: onLongPressMove,
-        onLongPressEnd: onLongPressEnd,
-        onLongPressCancel: onLongPressCancel,
-        child: SizedBox(
-          height: height,
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              if (highlight)
-                AnimatedBuilder(
-                  animation: demo,
-                  builder: (BuildContext context, Widget? _) {
-                    final double pulse = demoActive
-                        ? 0.5 + 0.5 * math.sin(demo.value * math.pi * 2)
-                        : 0.5;
-                    return Container(
-                      width: 42 + pulse * 5,
-                      height: 42 + pulse * 5,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _C.accent.withValues(alpha: 0.05 + pulse * 0.06),
-                        border: Border.all(
-                          color: _C.accentLine.withValues(
-                            alpha: 0.4 + pulse * 0.25,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RailFish extends StatelessWidget {
-  const _RailFish({
-    required this.enabled,
+class _FeedSlide extends StatelessWidget {
+  const _FeedSlide({
+    required this.event,
+    required this.index,
     required this.active,
-    required this.registered,
-    required this.armed,
-    required this.hold,
-    required this.dragX,
-    required this.burst,
-    required this.burstPhase,
+    required this.done,
     required this.reduceMotion,
+    required this.pulse,
+    required this.feedController,
+    required this.mediaController,
+    required this.mediaIndex,
+    required this.onMediaChanged,
+    required this.reveal,
+    required this.geo,
+    required this.focusLabel,
+    required this.tooShort,
+    required this.phase,
   });
 
-  final bool enabled;
+  final _EventSpec event;
+  final int index;
   final bool active;
-  final bool registered;
-  final bool armed;
-  final Animation<double> hold;
-  final ValueListenable<double> dragX;
-  final Animation<double> burst;
-  final _Phase burstPhase;
+  final bool done;
   final bool reduceMotion;
+  final Animation<double> pulse;
+  final PageController feedController;
+  final PageController mediaController;
+  final int mediaIndex;
+  final ValueChanged<int> onMediaChanged;
+  final bool reveal;
+  final _FeedGeometry geo;
+  final String focusLabel;
+  final bool tooShort;
+  final _Phase phase;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[hold, dragX, burst]),
-      builder: (BuildContext context, Widget? _) {
-        final double dx = dragX.value;
-        final bool dragging = dx < -0.5;
-        final bool bursting = burstPhase == _Phase.register &&
-            burst.value > 0 &&
-            burst.value < 1;
-        return SizedBox(
-          width: 44,
-          height: 30,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: <Widget>[
-              if (bursting)
-                Positioned(
-                  left: -22 + dx,
-                  top: -12,
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      size: const Size(88, 54),
-                      painter: _PixelBurstPainter(
-                        progress: burst.value,
-                        origin: const Offset(44 + dx, 12),
-                        color: _C.accent,
-                        count: 12,
-                        reduced: false,
-                      ),
-                    ),
-                  ),
-                ),
-              Transform.translate(
-                offset: Offset(dx, 0),
-                child: SizedBox(
-                  width: 34,
-                  height: 28,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      CustomPaint(
-                        size: const Size(34, 28),
-                        painter: _FishPainter(
-                          color: !enabled
-                              ? _C.muted.withValues(alpha: 0.45)
-                              : active || registered
-                                  ? _C.accent
-                                  : _C.ink,
-                          fill: active || registered,
-                          glow: active || registered,
-                          wiggle: reduceMotion
-                              ? 0
-                              : math.sin(dragX.value * 0.15) * 0.45,
-                        ),
-                      ),
-                      if (hold.value > 0 && hold.value < 1 && !registered)
-                        CustomPaint(
-                          size: const Size(40, 34),
-                          painter: _HoldRingPainter(
-                            progress: hold.value,
-                            armed: armed,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+      animation: feedController,
+      builder: (BuildContext context, Widget? child) {
+        final double page = _pageValue();
+        final double delta = (page - index).clamp(-1.0, 1.0);
+        final double scale = 1 - delta.abs() * 0.06;
+        final double fade = 1 - delta.abs() * 0.55;
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: _saturate(fade),
+            child: child,
           ),
         );
       },
+      child: _buildBody(context),
     );
   }
-}
 
-class _HintCard extends StatelessWidget {
-  const _HintCard({
-    required this.spec,
-    required this.tail,
-    required this.textScale,
-    required this.reduceMotion,
-    required this.demoActive,
-    required this.demo,
-    this.onAlt,
-    this.altLabel,
-  });
+  double _pageValue() {
+    if (!feedController.hasClients) return index.toDouble();
+    return feedController.page ?? index.toDouble();
+  }
 
-  final _HintSpec spec;
-  final _HintTail tail;
-  final double textScale;
-  final bool reduceMotion;
-  final bool demoActive;
-  final Animation<double> demo;
-  final VoidCallback? onAlt;
-  final String? altLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool tightWidth = constraints.maxWidth < 190;
-        final bool tightHeight = constraints.maxHeight < 132;
-        final Widget content = Container(
-          padding: EdgeInsets.fromLTRB(
-            tightWidth ? 10 : 13,
-            tightHeight ? 8 : 11,
-            tightWidth ? 10 : 13,
-            tightHeight ? 8 : 11,
-          ),
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: const BorderRadius.all(Radius.circular(18)),
-            border: Border.all(color: _C.line),
-            boxShadow: _S.floating,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if (spec.glyph != _HintGlyph.none) ...<Widget>[
-                    _HintGlyphBox(
-                      glyph: spec.glyph,
-                      reduceMotion: reduceMotion,
-                      demo: demo,
-                      demoActive: demoActive,
+  Widget _buildBody(BuildContext context) {
+    final bool mediaLocked = mediaIndex == 0;
+    return Stack(
+      children: <Widget>[
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: geo.mediaHeight,
+          child: RepaintBoundary(
+            child: PageView.builder(
+              controller: mediaController,
+              itemCount: event.scenes.length,
+              physics: mediaLocked
+                  ? const NeverScrollableScrollPhysics()
+                  : const PageScrollPhysics(parent: ClampingScrollPhysics()),
+              onPageChanged: onMediaChanged,
+              itemBuilder: (BuildContext context, int i) {
+                final _SceneKind kind = event.scenes[i];
+                return Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _SceneArt(kind: kind, dimmed: !active),
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: _MediaBadge(
+                        count: event.scenes.length,
+                        index: mediaIndex,
+                        video: kind == _SceneKind.video,
+                        active: active,
+                      ),
                     ),
-                    const SizedBox(width: 8),
                   ],
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: tightHeight
-                          ? const ClampingScrollPhysics()
-                          : const NeverScrollableScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            spec.text,
-                            style: _T.sans(
-                              tightWidth ? 12.5 : 13.5,
-                              weight: FontWeight.w700,
-                              height: 1.3,
-                              color: _C.ink,
-                            ),
-                          ),
-                          if (spec.note != null && !tightHeight) ...<Widget>[
-                            const SizedBox(height: 4),
-                            Text(
-                              spec.note!,
-                              style: _T.sans(
-                                tightWidth ? 11 : 11.5,
-                                color: _C.muted,
-                                height: 1.3,
-                                weight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                          if (onAlt != null && altLabel != null) ...<Widget>[
-                            const SizedBox(height: 6),
-                            _AltAction(label: altLabel!, onTap: onAlt!),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-        if (tail == _HintTail.none) return content;
-        return _TailedCard(tail: tail, child: content);
-      },
-    );
-  }
-}
-
-class _TailedCard extends StatelessWidget {
-  const _TailedCard({required this.tail, required this.child});
-
-  final _HintTail tail;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _TailPainter(tail: tail),
-      child: child,
-    );
-  }
-}
-
-class _TailPainter extends CustomPainter {
-  const _TailPainter({required this.tail});
-
-  final _HintTail tail;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint fill = Paint()..color = _C.surface;
-    final Paint stroke = Paint()
-      ..color = _C.line
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    const double tailSize = 6;
-    switch (tail) {
-      case _HintTail.left:
-        final Path path = Path()
-          ..moveTo(0, size.height * 0.5 - tailSize)
-          ..lineTo(-tailSize, size.height * 0.5)
-          ..lineTo(0, size.height * 0.5 + tailSize)
-          ..close();
-        canvas.drawPath(path, fill);
-      case _HintTail.right:
-        final Path path = Path()
-          ..moveTo(size.width, size.height * 0.5 - tailSize)
-          ..lineTo(size.width + tailSize, size.height * 0.5)
-          ..lineTo(size.width, size.height * 0.5 + tailSize)
-          ..close();
-        canvas.drawPath(path, fill);
-        canvas.drawLine(
-          Offset(size.width, size.height * 0.5 - tailSize + 1),
-          Offset(size.width + tailSize - 1.5, size.height * 0.5),
-          stroke,
-        );
-        canvas.drawLine(
-          Offset(size.width + tailSize - 1.5, size.height * 0.5),
-          Offset(size.width, size.height * 0.5 + tailSize - 1),
-          stroke,
-        );
-      case _HintTail.top:
-        final Path path = Path()
-          ..moveTo(size.width * 0.5 - tailSize, 0)
-          ..lineTo(size.width * 0.5, -tailSize)
-          ..lineTo(size.width * 0.5 + tailSize, 0)
-          ..close();
-        canvas.drawPath(path, fill);
-      case _HintTail.bottom:
-        final Path path = Path()
-          ..moveTo(size.width * 0.5 - tailSize, size.height)
-          ..lineTo(size.width * 0.5, size.height + tailSize)
-          ..lineTo(size.width * 0.5 + tailSize, size.height)
-          ..close();
-        canvas.drawPath(path, fill);
-      case _HintTail.none:
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TailPainter old) => old.tail != tail;
-}
-
-class _HintGlyphBox extends StatelessWidget {
-  const _HintGlyphBox({
-    required this.glyph,
-    required this.reduceMotion,
-    required this.demo,
-    required this.demoActive,
-  });
-
-  final _HintGlyph glyph;
-  final bool reduceMotion;
-  final Animation<double> demo;
-  final bool demoActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final String label = switch (glyph) {
-      _HintGlyph.up => 'Стрелка вверх',
-      _HintGlyph.left => 'Стрелка влево',
-      _ => 'Точка касания',
-    };
-    return Semantics(
-      label: label,
-      child: SizedBox(
-        width: 26,
-        height: 34,
-        child: AnimatedBuilder(
-          animation: demo,
-          builder: (BuildContext context, Widget? child) {
-            final double t = demoActive && !reduceMotion ? demo.value : 0.0;
-            return CustomPaint(
-              painter: _HintGlyphPainter(
-                glyph: glyph,
-                t: t,
-                reduceMotion: reduceMotion,
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _HintGlyphPainter extends CustomPainter {
-  const _HintGlyphPainter({
-    required this.glyph,
-    required this.t,
-    required this.reduceMotion,
-  });
-
-  final _HintGlyph glyph;
-  final double t;
-  final bool reduceMotion;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = _C.accent
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    switch (glyph) {
-      case _HintGlyph.up:
-        final double offset = reduceMotion ? 0 : math.sin(t * math.pi * 2) * 2.5;
-        _arrow(canvas, center + Offset(0, 4 - offset), paint, -math.pi / 2, size);
-      case _HintGlyph.left:
-        final double offset = reduceMotion ? 0 : math.sin(t * math.pi * 2) * 2.0;
-        _arrow(canvas, center + Offset(offset, 0), paint, math.pi, size);
-      case _HintGlyph.tap:
-        final double pulse = reduceMotion ? 0.0 : math.sin(t * math.pi * 2) * 1.5;
-        final Offset dot = center + Offset(0, 2);
-        canvas.drawCircle(
-          dot,
-          4.2 + pulse,
-          Paint()..color = _C.accent.withValues(alpha: 0.14),
-        );
-        canvas.drawCircle(dot, 4.2, paint);
-        canvas.drawCircle(
-          dot,
-          14,
-          Paint()
-            ..color = _C.accent.withValues(alpha: 0.45)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1,
-        );
-      case _HintGlyph.none:
-        break;
-    }
-  }
-
-  void _arrow(Canvas canvas, Offset at, Paint paint, double angle, Size size) {
-    canvas.save();
-    canvas.translate(at.dx, at.dy);
-    canvas.rotate(angle);
-    final double length = math.min(size.height * 0.34, 12);
-    canvas.drawLine(Offset(-2, 0), Offset(-2, length), paint);
-    final Path head = Path()
-      ..moveTo(-6.5, length - 6)
-      ..lineTo(-2, length - 1.2)
-      ..lineTo(2.5, length - 6);
-    canvas.drawPath(head, paint);
-    canvas.drawCircle(Offset(-2, -3), 2.4, paint);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _HintGlyphPainter old) =>
-      old.glyph != glyph || old.t != t || old.reduceMotion != reduceMotion;
-}
-
-class _AltAction extends StatelessWidget {
-  const _AltAction({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 32),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-          decoration: BoxDecoration(
-            color: _C.accentSoft,
-            borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-            border: Border.all(color: _C.accentLine),
-          ),
-          child: Text(
-            label,
-            style: _T.sans(
-              11.5,
-              weight: FontWeight.w700,
-              color: _C.accent,
-              height: 1.1,
+                );
+              },
             ),
           ),
         ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: geo.mediaHeight,
+          bottom: 0,
+          child: _SkeletonText(reveal: reveal, event: event),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          top: math.max(10, geo.mediaHeight - 96),
+          child: _FocusLine(
+            text: focusLabel,
+            visible: active && focusLabel.isNotEmpty && !done,
+            reduceMotion: reduceMotion,
+            pulse: pulse,
+          ),
+        ),
+        Positioned(
+          right: 12,
+          top: geo.mediaHeight - 24,
+          child: _RailColumn(active: active, phase: phase),
+        ),
+        if (active && tooShort)
+          Positioned(
+            left: 16,
+            right: 76,
+            top: geo.mediaHeight - 64,
+            child: const _TooShortNote(),
+          ),
+      ],
+    );
+  }
+}
+
+class _SceneArt extends StatelessWidget {
+  const _SceneArt({required this.kind, required this.dimmed});
+
+  final _SceneKind kind;
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          CustomPaint(
+            painter: switch (kind) {
+              _SceneKind.court => const _CourtPainter(),
+              _SceneKind.lab => const _LabPainter(),
+              _SceneKind.waves => const _WavesPainter(),
+              _SceneKind.video => const _VideoPainter(),
+            },
+          ),
+          Positioned.fill(
+            child: ColoredBox(
+              color: _C.paper.withValues(alpha: dimmed ? 0.55 : 0.0),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.phase,
+class _CourtPainter extends CustomPainter {
+  const _CourtPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = _C.shade);
+    final Paint soft = Paint()..color = _C.skeleton;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.22, size.width * 0.5, size.height * 0.2),
+      soft,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.48, size.width * 0.34, size.height * 0.3),
+      Paint()..color = _C.bone,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.52, size.height * 0.54, size.width * 0.36, size.height * 0.24),
+      soft,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.82, size.width, size.height * 0.18),
+      Paint()..color = _C.skeleton,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _LabPainter extends CustomPainter {
+  const _LabPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = _C.shade);
+    final Paint line = Paint()
+      ..color = _C.bone
+      ..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 34) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+    }
+    for (double y = 0; y < size.height; y += 34) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+    }
+    final Paint block = Paint()..color = _C.skeleton;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.14, size.height * 0.3, size.width * 0.24, size.height * 0.18),
+      block,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.55, size.height * 0.42, size.width * 0.3, size.height * 0.26),
+      Paint()..color = _C.bone,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.86, size.width, size.height * 0.14),
+      block,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _WavesPainter extends CustomPainter {
+  const _WavesPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = _C.shade);
+    final Paint wave = Paint()
+      ..color = _C.bone
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (int i = 0; i < 6; i++) {
+      final Path path = Path();
+      final double base = size.height * (0.22 + i * 0.13);
+      path.moveTo(0, base);
+      for (double x = 0; x <= size.width; x += 10) {
+        path.lineTo(x, base + math.sin(x / 46 + i) * 7);
+      }
+      canvas.drawPath(path, wave);
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.16, size.height * 0.3, size.width * 0.34, size.height * 0.16),
+      Paint()..color = _C.skeleton,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _VideoPainter extends CustomPainter {
+  const _VideoPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = _C.shade);
+    final Rect screen = Rect.fromLTWH(
+      size.width * 0.12,
+      size.height * 0.2,
+      size.width * 0.76,
+      size.height * 0.44,
+    );
+    canvas.drawRect(screen, Paint()..color = _C.skeleton);
+    final Offset center = screen.center;
+    canvas.drawCircle(center, 26, Paint()..color = _C.bone);
+    final Path play = Path()
+      ..moveTo(center.dx - 7, center.dy - 11)
+      ..lineTo(center.dx + 12, center.dy)
+      ..lineTo(center.dx - 7, center.dy + 11)
+      ..close();
+    canvas.drawPath(play, Paint()..color = _C.surface);
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.12, size.height * 0.7, size.width * 0.76, 8),
+      Paint()..color = _C.bone,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({
     required this.step,
     required this.total,
     required this.done,
+    required this.showNext,
     required this.onSkip,
     required this.onNext,
   });
 
-  final _Phase phase;
   final int step;
   final int total;
   final bool done;
+  final bool showNext;
   final VoidCallback onSkip;
   final VoidCallback onNext;
 
-  bool get _showNext {
-    return done &&
-        phase != _Phase.intro &&
-        phase != _Phase.finale &&
-        phase != _Phase.swipeFeed;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool showProgress = phase != _Phase.intro && phase != _Phase.finale;
-    final String label = phase == _Phase.intro
-        ? 'Вступление'
-        : phase == _Phase.finale
-            ? 'Финал'
-            : 'Шаг $step из $total';
-    return SizedBox(
-      height: 46,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool narrow = constraints.maxWidth < 392;
-          return Row(
-            children: <Widget>[
-              const _PixelFishMark(size: 26),
-              if (!narrow) ...<Widget>[
-                const SizedBox(width: 9),
-                Text(
-                  'CampusLife',
-                  style: _T.sans(
-                    14.5,
-                    weight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                  ),
+    return Row(
+      children: <Widget>[
+        const _FishMark(size: 22),
+        const SizedBox(width: 8),
+        Text(
+          'CampusLife',
+          style: _T.sans(13.5, weight: FontWeight.w800, letterSpacing: -0.2),
+        ),
+        const Spacer(),
+        _PixelProgress(step: step, total: total, done: done),
+        if (showNext) ...<Widget>[
+          const SizedBox(width: 8),
+          Semantics(
+            button: true,
+            label: 'Далее',
+            excludeSemantics: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onNext,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 66, minHeight: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: _C.accent,
+                  borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
                 ),
-              ],
-              const SizedBox(width: 10),
-              if (showProgress) ...<Widget>[
-                if (!narrow) ...<Widget>[
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _T.mono(9.5, color: _C.muted, letterSpacing: 0.6),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                SizedBox(
-                  width: 56,
-                  height: 8,
-                  child: _PixelProgress(step: step, total: total, done: done),
-                ),
-              ],
-              const Spacer(),
-              if (_showNext)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Semantics(
-                    button: true,
-                    label: 'Далее',
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onNext,
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 64,
-                          minHeight: 38,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: _C.accent,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(_R.pill),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Text(
-                              'Далее',
-                              style: _T.sans(
-                                12.5,
-                                weight: FontWeight.w800,
-                                color: _C.surface,
-                                height: 1.1,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            CustomPaint(
-                              size: const Size(11, 11),
-                              painter: _ArrowPainter(color: _C.surface),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Semantics(
-                button: true,
-                label: 'Пропустить обучение',
-                excludeSemantics: true,
-                child: TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(74, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    foregroundColor: _C.ink2,
-                    tapTargetSize: MaterialTapTargetSize.padded,
-                  ),
+                child: Center(
                   child: Text(
-                    'Пропустить',
+                    'Далее',
                     style: _T.sans(
                       12.5,
-                      weight: FontWeight.w700,
-                      color: _C.ink2,
+                      weight: FontWeight.w800,
+                      color: _C.surface,
                       height: 1.1,
                     ),
                   ),
                 ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 2),
+        Semantics(
+          button: true,
+          label: 'Пропустить обучение',
+          excludeSemantics: true,
+          child: TextButton(
+            onPressed: onSkip,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(78, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              foregroundColor: _C.muted,
+              tapTargetSize: MaterialTapTargetSize.padded,
+            ),
+            child: Text(
+              'Пропустить',
+              style: _T.sans(12.5, weight: FontWeight.w700, color: _C.muted),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2616,21 +1758,24 @@ class _PixelProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Прогресс обучения: шаг $step из $total',
+      excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           for (int i = 1; i <= total; i++)
-            Container(
-              width: 3.2,
-              height: i == step ? 8 : 5,
-              margin: const EdgeInsets.only(right: 1.8),
+            AnimatedContainer(
+              duration: _D.base,
+              curve: _E.main,
+              width: i == step ? 14 : 5,
+              height: 5,
+              margin: const EdgeInsets.only(right: 3),
               decoration: BoxDecoration(
                 color: i < step || (i == step && done)
                     ? _C.accent
                     : i == step
-                        ? _C.ink
-                        : _C.lineStrong,
-                borderRadius: const BorderRadius.all(Radius.circular(1)),
+                        ? _C.ink.withValues(alpha: 0.45)
+                        : _C.hairline,
+                borderRadius: const BorderRadius.all(Radius.circular(2)),
               ),
             ),
         ],
@@ -2639,94 +1784,103 @@ class _PixelProgress extends StatelessWidget {
   }
 }
 
-abstract final class _SheetShell {
-  static Widget wrap({
-    required String eyebrow,
-    required String title,
-    required Widget child,
-    required VoidCallback onClose,
-    Widget? footer,
-    bool showClose = true,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(_R.sheet)),
-          boxShadow: <BoxShadow>[
-            BoxShadow(color: Color(0x1F0D1117), blurRadius: 40, offset: Offset(0, -8)),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: _C.lineStrong,
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
+class _FishMark extends StatelessWidget {
+  const _FishMark({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _FishMarkPainter(color: _C.ink)),
+    );
+  }
+}
+
+class _FishMarkPainter extends CustomPainter {
+  const _FishMarkPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cell = size.width / 10;
+    const List<String> rows = <String>[
+      '   ####   ',
+      ' ##@@@@#  ',
+      '#@@@@@@@# ',
+      '#@#@@@@@##',
+      '#@@@@@@@# ',
+      ' ##@@@@#  ',
+      '   ####   ',
+    ];
+    final Paint solid = Paint()..color = color;
+    for (int y = 0; y < rows.length; y++) {
+      for (int x = 0; x < rows[y].length; x++) {
+        if (rows[y][x] == ' ') continue;
+        canvas.drawRect(
+          Rect.fromLTWH(x * cell, y * cell, cell - 0.8, cell - 0.8),
+          solid,
+        );
+      }
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(cell * 2.6, cell * 1.6, cell * 0.9, cell * 0.9),
+      Paint()..color = _C.surface,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _FishMarkPainter old) => old.color != color;
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: AnimatedOpacity(
+        duration: _D.quick,
+        opacity: enabled ? 1 : 0.4,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? onTap : null,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: const BoxDecoration(
+              color: _C.accent,
+              borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: _T.sans(
+                  15,
+                  weight: FontWeight.w800,
+                  color: _C.surface,
+                  height: 1.2,
                 ),
               ),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  eyebrow,
-                                  style: _T.mono(9.5, letterSpacing: 1.2),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  title,
-                                  style: _T.sans(
-                                    20,
-                                    weight: FontWeight.w800,
-                                    height: 1.15,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (showClose)
-                            _IconTap(
-                              label: 'Закрыть',
-                              size: 44,
-                              onTap: onClose,
-                              child: CustomPaint(
-                                size: const Size(16, 16),
-                                painter: _CrossPainter(color: _C.ink2),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      child,
-                    ],
-                  ),
-                ),
-              ),
-              if (footer != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-                  child: footer,
-                ),
-            ],
+            ),
           ),
         ),
       ),
@@ -2734,11 +1888,1047 @@ abstract final class _SheetShell {
   }
 }
 
-class _DemoNotice extends StatelessWidget {
-  const _DemoNotice({required this.text, this.icon = true});
+class _FocusedAction extends StatelessWidget {
+  const _FocusedAction({
+    required this.phase,
+    required this.done,
+    required this.reduceMotion,
+    required this.hold,
+    required this.dragX,
+    required this.travel,
+    required this.threshold,
+    required this.past,
+    required this.holdReady,
+    required this.onTap,
+    required this.onLongPressDown,
+    required this.onLongPressStart,
+    required this.onLongPressMove,
+    required this.onLongPressEnd,
+    required this.onLongPressCancel,
+    required this.onNext,
+  });
+
+  final _Phase phase;
+  final bool done;
+  final bool reduceMotion;
+  final Animation<double> hold;
+  final ValueListenable<double> dragX;
+  final double travel;
+  final double threshold;
+  final bool past;
+  final bool holdReady;
+  final VoidCallback onTap;
+  final GestureLongPressDownCallback onLongPressDown;
+  final GestureLongPressStartCallback onLongPressStart;
+  final GestureLongPressMoveUpdateCallback onLongPressMove;
+  final GestureLongPressEndCallback onLongPressEnd;
+  final GestureLongPressCancelCallback onLongPressCancel;
+  final VoidCallback onNext;
+
+  String get _label {
+    if (done) {
+      return phase == _Phase.settings ? 'Завершить обучение' : 'Далее';
+    }
+    return switch (phase) {
+      _Phase.swipeFeed => 'Смахни вверх',
+      _Phase.media => 'Пролистай медиа',
+      _Phase.favorite => 'Сохрани в избранное',
+      _Phase.register => 'Записаться на событие',
+      _Phase.reminder => 'Напомнить',
+      _Phase.description => 'Описание',
+      _Phase.share => 'Поделиться',
+      _Phase.report => 'Жалоба',
+      _Phase.search => 'Поиск',
+      _Phase.profile => 'Профиль',
+      _Phase.settings => 'Настройки',
+      _Phase.intro => 'Начать',
+      _Phase.finale => 'Готово',
+    };
+  }
+
+  String get _semanticLabel {
+    if (done) return _label;
+    return switch (phase) {
+      _Phase.swipeFeed => 'Сменить событие',
+      _Phase.media => 'Следующее медиа',
+      _Phase.favorite => 'Рыбка: добавить в избранное',
+      _Phase.register => 'Рыбка: удержание и свайп влево для записи',
+      _Phase.reminder => 'Напомнить о событии',
+      _Phase.description => 'Описание события',
+      _Phase.share => 'Поделиться событием',
+      _Phase.report => 'Пожаловаться на событие',
+      _Phase.search => 'Поиск',
+      _Phase.profile => 'Профиль',
+      _Phase.settings => 'Настройки профиля',
+      _Phase.intro => 'Начать обучение',
+      _Phase.finale => 'Перейти к событиям',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isHold = phase == _Phase.register && !done;
+    final bool isFish = (phase == _Phase.favorite || isHold) && !done;
+    return Semantics(
+      button: true,
+      label: _semanticLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: done ? onNext : onTap,
+        onLongPressDown: isHold ? onLongPressDown : null,
+        onLongPressStart: isHold ? onLongPressStart : null,
+        onLongPressMoveUpdate: isHold ? onLongPressMove : null,
+        onLongPressEnd: isHold ? onLongPressEnd : null,
+        onLongPressCancel: isHold ? onLongPressCancel : null,
+        child: AnimatedBuilder(
+          animation: Listenable.merge(<Listenable>[hold, dragX]),
+          builder: (BuildContext context, Widget? child) {
+            final double drag = _saturate(-dragX.value / math.max(1, travel));
+            final double holdValue = _saturate(hold.value);
+            return Container(
+              constraints: const BoxConstraints(minHeight: 56),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: _C.accent,
+                borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _C.accent.withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: <Widget>[
+                  if (isFish)
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: <Widget>[
+                          CustomPaint(
+                            size: const Size(34, 28),
+                            painter: _FishGlyphPainter(
+                              color: _C.surface,
+                              wave: reduceMotion
+                                  ? 0
+                                  : math.sin(holdValue * math.pi * 2) * 0.2,
+                            ),
+                          ),
+                          if (holdValue > 0 && holdValue < 1)
+                            CustomPaint(
+                              size: const Size(40, 40),
+                              painter: _RingPainter(progress: holdValue),
+                            ),
+                        ],
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        isHold && past ? 'Отпусти' : _label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: isFish ? TextAlign.left : TextAlign.center,
+                        style: _T.sans(
+                          14.5,
+                          weight: FontWeight.w800,
+                          color: _C.surface,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: <Widget>[
+                        CustomPaint(
+                          size: const Size(34, 34),
+                          painter: _KnobPainter(progress: drag, past: past),
+                        ),
+                        if (holdReady || drag > 0)
+                          CustomPaint(
+                            size: const Size(26, 26),
+                            painter: _ArrowLeftPainter(
+                              color: _C.accent,
+                              opacity: 0.5 + drag * 0.5,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(size.width / 2, size.height / 2),
+        radius: size.width * 0.46,
+      ),
+      -math.pi / 2,
+      math.pi * 2 * _saturate(progress),
+      false,
+      Paint()
+        ..color = _C.surface
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) => old.progress != progress;
+}
+
+class _KnobPainter extends CustomPainter {
+  const _KnobPainter({required this.progress, required this.past});
+
+  final double progress;
+  final bool past;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    canvas.drawCircle(
+      rect.center,
+      size.width / 2,
+      Paint()..color = _C.surface.withValues(alpha: past ? 1 : 0.22),
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: rect.center, radius: size.width / 2 - 2),
+      -math.pi / 2,
+      math.pi * 2 * _saturate(progress),
+      false,
+      Paint()
+        ..color = _C.surface
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _KnobPainter old) =>
+      old.progress != progress || old.past != past;
+}
+
+class _ArrowLeftPainter extends CustomPainter {
+  const _ArrowLeftPainter({required this.color, required this.opacity});
+
+  final Color color;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint stroke = Paint()
+      ..color = color.withValues(alpha: _saturate(opacity))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final Path path = Path()
+      ..moveTo(size.width * 0.66, size.height * 0.26)
+      ..lineTo(size.width * 0.36, size.height * 0.5)
+      ..lineTo(size.width * 0.66, size.height * 0.74);
+    canvas.drawPath(path, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArrowLeftPainter old) => old.opacity != opacity;
+}
+
+class _SkeletonText extends StatelessWidget {
+  const _SkeletonText({required this.reveal, required this.event});
+
+  final bool reveal;
+  final _EventSpec event;
+
+  @override
+  Widget build(BuildContext context) {
+    return reveal
+        ? const _ContentBlock()
+        : const Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Semantics(
+              label: 'Описание события загружается',
+              excludeSemantics: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _Bone(width: 96, height: 18, radius: 9),
+                  SizedBox(height: 16),
+                  _Bone(width: double.infinity, height: 20, radius: 6),
+                  SizedBox(height: 9),
+                  _Bone(width: 210, height: 20, radius: 6),
+                  SizedBox(height: 16),
+                  _Bone(width: 148, height: 12, radius: 6),
+                  SizedBox(height: 8),
+                  _Bone(width: double.infinity, height: 12, radius: 6),
+                  SizedBox(height: 8),
+                  _Bone(width: 236, height: 12, radius: 6),
+                ],
+              ),
+            ),
+          );
+  }
+}
+
+class _Bone extends StatelessWidget {
+  const _Bone({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: _C.skeleton,
+        borderRadius: BorderRadius.all(Radius.circular(radius)),
+      ),
+    );
+  }
+}
+
+class _MediaBadge extends StatelessWidget {
+  const _MediaBadge({
+    required this.count,
+    required this.index,
+    required this.video,
+    required this.active,
+  });
+
+  final int count;
+  final int index;
+  final bool video;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Медиа ${index + 1} из $count',
+      excludeSemantics: true,
+      child: Row(
+        children: <Widget>[
+          if (video)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: _C.accent,
+                borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+              ),
+              child: Text(
+                'ВИДЕО',
+                style: _T.mono(8.5, color: _C.surface, letterSpacing: 0.9),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: _C.surface.withValues(alpha: 0.9),
+                borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+                border: Border.all(color: _C.hairline),
+              ),
+              child: Text(
+                'ФОТО',
+                style: _T.mono(8.5, color: _C.muted, letterSpacing: 0.9),
+              ),
+            ),
+          const Spacer(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (int i = 0; i < count; i++)
+                AnimatedContainer(
+                  duration: _D.base,
+                  curve: _E.main,
+                  width: i == index ? 16 : 5,
+                  height: 5,
+                  margin: const EdgeInsets.only(left: 4),
+                  decoration: BoxDecoration(
+                    color: i == index
+                        ? (active ? _C.accent : _C.ink.withValues(alpha: 0.5))
+                        : _C.ink.withValues(alpha: 0.22),
+                    borderRadius: const BorderRadius.all(Radius.circular(2)),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusLine extends StatelessWidget {
+  const _FocusLine({
+    required this.text,
+    required this.visible,
+    required this.reduceMotion,
+    required this.pulse,
+  });
 
   final String text;
-  final bool icon;
+  final bool visible;
+  final bool reduceMotion;
+  final Animation<double> pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (BuildContext context, Widget? child) {
+        final double t = reduceMotion ? 0.0 : pulse.value;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: SizedBox(
+                width: 10,
+                height: 10,
+                child: CustomPaint(
+                  painter: _PulseDotPainter(t: t, reduceMotion: reduceMotion),
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: _T.sans(
+                  14,
+                  weight: FontWeight.w700,
+                  color: _C.accent,
+                  height: 1.28,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PulseDotPainter extends CustomPainter {
+  const _PulseDotPainter({required this.t, required this.reduceMotion});
+
+  final double t;
+  final bool reduceMotion;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    canvas.drawRect(
+      Rect.fromCenter(center: rect.center, width: 6, height: 6),
+      Paint()..color = _C.accent,
+    );
+    if (reduceMotion) return;
+    final double wave = 0.5 + 0.5 * math.sin(t * math.pi * 2);
+    canvas.drawRect(
+      Rect.fromCenter(center: rect.center, width: 6 + wave * 4, height: 6 + wave * 4),
+      Paint()
+        ..color = _C.accent.withValues(alpha: 0.5 * (1 - wave))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PulseDotPainter old) => old.t != t;
+}
+
+class _TooShortNote extends StatelessWidget {
+  const _TooShortNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: 'Нужно удержание: короткий тап не записывает',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: _C.surface,
+          borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+          border: Border.all(color: _C.accentLine),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(width: 6, height: 6, color: _C.accent),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Нужно удержание, тап не считается',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _T.sans(
+                  11,
+                  weight: FontWeight.w700,
+                  color: _C.accent,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RailColumn extends StatelessWidget {
+  const _RailColumn({required this.active, required this.phase});
+
+  final bool active;
+  final _Phase phase;
+
+  _RailAction? get _focus {
+    return switch (phase) {
+      _Phase.reminder => _RailAction.bell,
+      _Phase.favorite || _Phase.register => _RailAction.fish,
+      _Phase.description => _RailAction.info,
+      _Phase.share => _RailAction.share,
+      _Phase.report => _RailAction.flag,
+      _ => null,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final _RailAction? focus = _focus;
+    return AnimatedOpacity(
+      duration: _D.base,
+      opacity: focus == null ? 0.5 : 1,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (final _RailAction action in _RailAction.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: _RailDot(
+                action: action,
+                active: active,
+                focused: action == focus,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RailDot extends StatelessWidget {
+  const _RailDot({
+    required this.action,
+    required this.active,
+    required this.focused,
+  });
+
+  final _RailAction action;
+  final bool active;
+  final bool focused;
+
+  @override
+  Widget build(BuildContext context) {
+    final String label = switch (action) {
+      _RailAction.bell => 'Напомнить',
+      _RailAction.fish => 'Избранное',
+      _RailAction.info => 'Описание',
+      _RailAction.share => 'Поделиться',
+      _RailAction.flag => 'Жалоба',
+    };
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: focused ? _C.accent : _C.surface.withValues(alpha: 0.92),
+          shape: BoxShape.circle,
+          border: Border.all(color: focused ? _C.accent : _C.hairline),
+        ),
+        child: CustomPaint(
+          size: const Size(14, 14),
+          painter: _RailGlyphPainter(
+            action: action,
+            color: focused
+                ? _C.surface
+                : _C.muted.withValues(alpha: active ? 0.85 : 0.45),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailGlyphPainter extends CustomPainter {
+  const _RailGlyphPainter({required this.action, required this.color});
+
+  final _RailAction action;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+    switch (action) {
+      case _RailAction.bell:
+        canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.46), size.width * 0.28, stroke);
+        canvas.drawLine(
+          Offset(size.width * 0.42, size.height * 0.76),
+          Offset(size.width * 0.58, size.height * 0.76),
+          stroke,
+        );
+      case _RailAction.fish:
+        canvas.drawRect(
+          Rect.fromLTWH(size.width * 0.2, size.height * 0.36, size.width * 0.5, size.height * 0.28),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(size.width * 0.7, size.height * 0.5),
+          Offset(size.width * 0.9, size.height * 0.34),
+          stroke,
+        );
+      case _RailAction.info:
+        canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.4, stroke);
+        canvas.drawLine(
+          Offset(size.width / 2, size.height * 0.44),
+          Offset(size.width / 2, size.height * 0.7),
+          stroke,
+        );
+      case _RailAction.share:
+        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.26), size.width * 0.12, stroke);
+        canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.5), size.width * 0.12, stroke);
+        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.74), size.width * 0.12, stroke);
+        canvas.drawLine(
+          Offset(size.width * 0.38, size.height * 0.44),
+          Offset(size.width * 0.62, size.height * 0.3),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(size.width * 0.38, size.height * 0.56),
+          Offset(size.width * 0.62, size.height * 0.7),
+          stroke,
+        );
+      case _RailAction.flag:
+        canvas.drawLine(
+          Offset(size.width * 0.32, size.height * 0.18),
+          Offset(size.width * 0.32, size.height * 0.84),
+          stroke,
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(size.width * 0.32, size.height * 0.22, size.width * 0.4, size.height * 0.3),
+          stroke,
+        );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RailGlyphPainter old) =>
+      old.color != color || old.action != action;
+}
+
+class _HandPainter extends CustomPainter {
+  const _HandPainter({
+    required this.kind,
+    required this.t,
+    required this.size,
+    required this.mediaHeight,
+  });
+
+  final _DemoKind kind;
+  final double t;
+  final Size size;
+  final double mediaHeight;
+
+  Offset get _start {
+    final double cx = size.width / 2;
+    final double cy = mediaHeight * 0.52;
+    return switch (kind) {
+      _DemoKind.swipeUp || _DemoKind.swipeLeft || _DemoKind.holdDrag =>
+        Offset(cx, cy),
+      _DemoKind.tapFish => Offset(size.width * 0.34, math.max(140, size.height - 46)),
+      _DemoKind.tapBell ||
+      _DemoKind.tapInfo ||
+      _DemoKind.tapShare ||
+      _DemoKind.tapFlag ||
+      _DemoKind.tapSearch ||
+      _DemoKind.tapProfile =>
+        Offset(size.width * 0.5, math.max(120, size.height - 46)),
+      _DemoKind.none => Offset(cx, cy),
+    };
+  }
+
+  @override
+  void paint(Canvas canvas, Size canvasSize) {
+    if (kind == _DemoKind.none) return;
+    final double phase = t % 1;
+    final Offset start = _start;
+    Offset end = start;
+    double press = 0;
+    double fade = 1;
+    if (kind == _DemoKind.swipeUp) {
+      final double progress = Curves.easeInOutCubic.transform(phase.clamp(0.0, 0.62) / 0.62);
+      end = start - Offset(0, 96 * progress);
+      fade = phase < 0.05 ? phase / 0.05 : (phase > 0.62 ? _saturate((0.82 - phase) / 0.2) : 1);
+      press = 0.9;
+    } else if (kind == _DemoKind.swipeLeft) {
+      final double progress = Curves.easeInOutCubic.transform(phase.clamp(0.0, 0.62) / 0.62);
+      end = start - Offset(118 * progress, 0);
+      fade = phase < 0.05 ? phase / 0.05 : (phase > 0.62 ? _saturate((0.82 - phase) / 0.2) : 1);
+      press = 0.9;
+    } else if (kind == _DemoKind.holdDrag) {
+      final double hold = _saturate(phase / 0.46);
+      final double drag = Curves.easeInOutCubic.transform(_saturate((phase - 0.4) / 0.42));
+      end = start - Offset(120 * drag, 0);
+      fade = phase > 0.86 ? _saturate((1 - phase) / 0.14) : 1;
+      press = 1;
+      canvas.drawArc(
+        Rect.fromCircle(center: start, radius: 20),
+        -math.pi / 2,
+        math.pi * 2 * hold,
+        false,
+        Paint()
+          ..color = _C.accent.withValues(alpha: 0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round,
+      );
+    } else {
+      final double cycle = phase < 0.42 ? phase / 0.42 : _saturate((0.84 - phase) / 0.42);
+      press = cycle;
+      fade = phase > 0.86 ? _saturate((1 - phase) / 0.14) : 1;
+    }
+    final Offset pos = end;
+    if (fade <= 0) return;
+    final Paint halo = Paint()..color = _C.accent.withValues(alpha: 0.16 * fade);
+    if (kind == _DemoKind.swipeUp ||
+        kind == _DemoKind.swipeLeft ||
+        kind == _DemoKind.holdDrag) {
+      final int steps = 4;
+      for (int i = 1; i <= steps; i++) {
+        final Offset p = Offset.lerp(start, end, i / (steps + 1))!;
+        canvas.drawRect(
+          Rect.fromCenter(center: p, width: 3, height: 3),
+          Paint()..color = _C.accent.withValues(alpha: 0.3 * fade * (i / steps)),
+        );
+      }
+    }
+    canvas.drawCircle(pos, 18, halo);
+    canvas.drawCircle(
+      pos,
+      10.5,
+      Paint()..color = _C.accent.withValues(alpha: 0.95 * fade),
+    );
+    canvas.drawCircle(
+      pos,
+      10.5,
+      Paint()
+        ..color = _C.surface.withValues(alpha: 0.9 * fade)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+    final double ripple = (1 - press) * 16;
+    if (ripple > 1) {
+      canvas.drawCircle(
+        pos,
+        10.5 + ripple,
+        Paint()
+          ..color = _C.accent.withValues(alpha: 0.35 * press * fade)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HandPainter old) =>
+      old.t != t || old.kind != kind || old.size != size;
+}
+
+class _HoldTrack extends StatelessWidget {
+  const _HoldTrack({
+    required this.hold,
+    required this.dragX,
+    required this.travel,
+    required this.threshold,
+    required this.past,
+    required this.ready,
+  });
+
+  final Animation<double> hold;
+  final ValueListenable<double> dragX;
+  final double travel;
+  final double threshold;
+  final bool past;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge(<Listenable>[hold, dragX]),
+      builder: (BuildContext context, Widget? child) {
+        final double holdValue = _saturate(hold.value);
+        final double dx = dragX.value;
+        final double width = travel * 1.16;
+        return SizedBox(
+          width: width,
+          height: 54,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _C.surface,
+                  borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+                  border: Border.all(color: _C.hairline),
+                ),
+                child: Text(
+                  !ready ? 'Удерживай' : (past ? 'Отпусти' : 'Веди влево'),
+                  style: _T.sans(
+                    10.5,
+                    weight: FontWeight.w800,
+                    color: _C.accent,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: CustomPaint(
+                  size: Size(width, 30),
+                  painter: _TrackPainter(
+                    progress: holdValue,
+                    drag: dx,
+                    travel: travel,
+                    threshold: threshold,
+                    ready: ready,
+                    past: past,
+                    width: width,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TrackPainter extends CustomPainter {
+  const _TrackPainter({
+    required this.progress,
+    required this.drag,
+    required this.travel,
+    required this.threshold,
+    required this.ready,
+    required this.past,
+    required this.width,
+  });
+
+  final double progress;
+  final double drag;
+  final double travel;
+  final double threshold;
+  final bool ready;
+  final bool past;
+  final double width;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double midY = size.height / 2;
+    final Rect track = Rect.fromLTWH(0, midY - 6, size.width, 12);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(track, const Radius.circular(6)),
+      Paint()..color = _C.ink.withValues(alpha: 0.06),
+    );
+    final double scale = track.width / (travel * 1.16);
+    final double thresholdX = track.right - threshold * scale;
+    canvas.drawRect(
+      Rect.fromLTWH(thresholdX - 1, track.top - 4, 2, 20),
+      Paint()..color = _C.ink.withValues(alpha: 0.28),
+    );
+    final double filled = (-drag).clamp(0.0, travel) * scale;
+    if (filled > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(track.right - filled, track.top, filled, 12),
+          const Radius.circular(6),
+        ),
+        Paint()..color = (past ? _C.accent : _C.accentLine),
+      );
+    }
+    if (!ready) {
+      canvas.drawRect(
+        Rect.fromLTWH(track.left, midY - 2, track.width * progress, 4),
+        Paint()..color = _C.accent.withValues(alpha: 0.5),
+      );
+    }
+    final double knobX = track.right + drag * 0.92;
+    canvas.drawCircle(
+      Offset(knobX, midY),
+      9,
+      Paint()..color = past ? _C.accent : _C.ink,
+    );
+    canvas.drawCircle(
+      Offset(knobX, midY),
+      3.6,
+      Paint()..color = _C.surface,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrackPainter old) =>
+      old.progress != progress ||
+      old.drag != drag ||
+      old.ready != ready ||
+      old.past != past;
+}
+
+class _SheetShell extends StatelessWidget {
+  const _SheetShell({
+    required this.eyebrow,
+    required this.title,
+    required this.child,
+    required this.onClose,
+    this.footer,
+  });
+
+  final String eyebrow;
+  final String title;
+  final Widget child;
+  final VoidCallback onClose;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _C.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(_R.sheet)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox(height: 10),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: const BoxDecoration(
+                color: _C.hairline,
+                borderRadius: BorderRadius.all(Radius.circular(2)),
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                eyebrow,
+                                style: _T.mono(9.5, letterSpacing: 1.2),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                title,
+                                style: _T.sans(
+                                  21,
+                                  weight: FontWeight.w800,
+                                  height: 1.14,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _IconTap(
+                          label: 'Закрыть',
+                          onTap: onClose,
+                          child: CustomPaint(
+                            size: const Size(15, 15),
+                            painter: _CrossPainter(color: _C.ink2),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    child,
+                  ],
+                ),
+              ),
+            ),
+            if (footer != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: footer,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DemoNotice extends StatelessWidget {
+  const _DemoNotice({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -2748,345 +2938,99 @@ class _DemoNotice extends StatelessWidget {
       decoration: BoxDecoration(
         color: _C.paper,
         borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-        border: Border.all(color: _C.line),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (icon) ...<Widget>[
-            CustomPaint(
-              size: const Size(14, 14),
-              painter: _InfoDotPainter(),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Text(
-              text,
-              style: _T.sans(
-                11.5,
-                color: _C.ink2,
-                height: 1.35,
-                weight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: _T.sans(
+          11.5,
+          color: _C.muted,
+          height: 1.35,
+          weight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
-class _InfoDotPainter extends CustomPainter {
+class _CrossPainter extends CustomPainter {
+  const _CrossPainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final Paint stroke = Paint()
-      ..color = _C.muted
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2 - 1, stroke);
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height * 0.32),
-      1.1,
-      Paint()..color = _C.muted,
+      ..color = color
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(size.width * 0.22, size.height * 0.22),
+      Offset(size.width * 0.78, size.height * 0.78),
+      stroke,
     );
     canvas.drawLine(
-      Offset(size.width / 2, size.height * 0.45),
-      Offset(size.width / 2, size.height * 0.72),
+      Offset(size.width * 0.78, size.height * 0.22),
+      Offset(size.width * 0.22, size.height * 0.78),
       stroke,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _CrossPainter old) => old.color != color;
 }
 
-class _ReminderSheet extends StatelessWidget {
-  const _ReminderSheet({
-    required this.selected,
-    required this.onSelect,
-    required this.onClose,
-  });
+class _BackPainter extends CustomPainter {
+  const _BackPainter({required this.color});
 
-  final _ReminderChoice? selected;
-  final ValueChanged<_ReminderChoice> onSelect;
-  final VoidCallback onClose;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return _SheetShell.wrap(
-      eyebrow: 'НАПОМИНАНИЕ',
-      title: 'Когда напомнить?',
-      onClose: onClose,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _SheetOption(
-            label: 'За час',
-            meta: 'Короткий сигнал перед началом',
-            selected: selected == _ReminderChoice.hour,
-            onTap: () => onSelect(_ReminderChoice.hour),
-          ),
-          const SizedBox(height: 8),
-          _SheetOption(
-            label: 'За день',
-            meta: 'Чтобы успеть собраться',
-            selected: selected == _ReminderChoice.day,
-            onTap: () => onSelect(_ReminderChoice.day),
-          ),
-          const SizedBox(height: 14),
-          const _DemoNotice(
-            text: 'Учебный режим — уведомление не будет создано.',
-          ),
-        ],
-      ),
+  void paint(Canvas canvas, Size size) {
+    final Paint stroke = Paint()
+      ..color = color
+      ..strokeWidth = 1.9
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.62, size.height * 0.2)
+        ..lineTo(size.width * 0.32, size.height * 0.5)
+        ..lineTo(size.width * 0.62, size.height * 0.8),
+      stroke,
     );
   }
-}
-
-class _DescriptionSheet extends StatelessWidget {
-  const _DescriptionSheet({
-    required this.event,
-    required this.done,
-    required this.onConfirm,
-    required this.onClose,
-  });
-
-  final _EventSpec event;
-  final bool done;
-  final VoidCallback onConfirm;
-  final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
-    return _SheetShell.wrap(
-      eyebrow: 'ОПИСАНИЕ',
-      title: event.title,
-      onClose: onClose,
-      footer: _PrimaryButton(
-        label: 'Понятно',
-        onTap: onConfirm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _DescriptionRow(
-            label: 'О событии',
-            value: event.blurb,
-          ),
-          _DescriptionRow(
-            label: 'Место',
-            value: '${event.place}, кампус',
-          ),
-          _DescriptionRow(
-            label: 'Организатор',
-            value: '${event.organizer}, студенческое объединение',
-          ),
-          _DescriptionRow(
-            label: 'Условия участия',
-            value: 'Вход по учебной записи, участие бесплатное',
-          ),
-          const SizedBox(height: 10),
-          _DemoNotice(
-            text: done
-                ? 'Описание прочитано. Это учебный экран.'
-                : 'Учебная информация — реальная запись не создаётся.',
-          ),
-        ],
-      ),
-    );
-  }
+  bool shouldRepaint(covariant _BackPainter old) => old.color != color;
 }
 
-class _DescriptionRow extends StatelessWidget {
-  const _DescriptionRow({required this.label, required this.value});
+class _IconTap extends StatelessWidget {
+  const _IconTap({
+    required this.label,
+    required this.onTap,
+    required this.child,
+    this.size = 44,
+  });
 
   final String label;
-  final String value;
+  final VoidCallback onTap;
+  final Widget child;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label, style: _T.mono(9.5, letterSpacing: 1.1)),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: _T.sans(13.5, color: _C.ink2, height: 1.38),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ShareSheet extends StatelessWidget {
-  const _ShareSheet({
-    required this.copied,
-    required this.onCopy,
-    required this.onClose,
-  });
-
-  final bool copied;
-  final VoidCallback onCopy;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SheetShell.wrap(
-      eyebrow: 'ПОДЕЛИТЬСЯ',
-      title: 'Пригласи друзей',
-      onClose: onClose,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: _C.paper,
-              borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-              border: Border.all(color: _C.line),
-            ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    'campuslife.demo/event/1',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _T.mono(11.5, color: _C.ink2, letterSpacing: 0.2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (copied)
-                  Text(
-                    'Готово',
-                    style: _T.sans(
-                      11.5,
-                      weight: FontWeight.w800,
-                      color: _C.accent,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _PrimaryButton(
-            label: copied ? 'Готово' : 'Скопировать учебную ссылку',
-            onTap: onCopy,
-            tone: copied ? _ButtonTone.ghost : _ButtonTone.solid,
-          ),
-          const SizedBox(height: 12),
-          const _DemoNotice(
-            text: 'Это демонстрация: настоящая ссылка не копируется.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportSheet extends StatelessWidget {
-  const _ReportSheet({
-    required this.reason,
-    required this.sent,
-    required this.onReason,
-    required this.onSend,
-    required this.onClose,
-  });
-
-  final _ReportReason? reason;
-  final bool sent;
-  final ValueChanged<_ReportReason> onReason;
-  final VoidCallback onSend;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SheetShell.wrap(
-      eyebrow: 'ЖАЛОБА',
-      title: 'Что не так с событием?',
-      onClose: onClose,
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _PrimaryButton(
-            label: sent ? 'Жалоба отмечена' : 'Отправить учебную жалобу',
-            onTap: onSend,
-            enabled: reason != null && !sent,
-            tone: sent ? _ButtonTone.ghost : _ButtonTone.solid,
-          ),
-          const SizedBox(height: 8),
-          const _DemoNotice(
-            text: 'Учебный режим. Жалоба никуда не отправится.',
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _SheetOption(
-            label: 'Неверная информация',
-            meta: 'Дата, место или организатор указаны неверно',
-            selected: reason == _ReportReason.wrongInfo,
-            onTap: () => onReason(_ReportReason.wrongInfo),
-          ),
-          const SizedBox(height: 8),
-          _SheetOption(
-            label: 'Неподходящий контент',
-            meta: 'Материалы не для студенческой афиши',
-            selected: reason == _ReportReason.inappropriate,
-            onTap: () => onReason(_ReportReason.inappropriate),
-          ),
-          const SizedBox(height: 8),
-          _SheetOption(
-            label: 'Другая причина',
-            meta: 'Расскажем модератору в комментарии',
-            selected: reason == _ReportReason.other,
-            onTap: () => onReason(_ReportReason.other),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            reason == null
-                ? 'Выбери причину — кнопка отправки станет активной.'
-                : 'Причина выбрана. Кнопка отправки доступна.',
-            style: _T.sans(11.5, color: _C.muted, height: 1.35),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TicketSheet extends StatelessWidget {
-  const _TicketSheet({required this.event, required this.onClose});
-
-  final _EventSpec event;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SheetShell.wrap(
-      eyebrow: 'УЧЕБНЫЙ БИЛЕТ',
-      title: 'Твой билет',
-      onClose: onClose,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _TicketCard(event: event, compact: false),
-          const SizedBox(height: 12),
-          const _DemoNotice(
-            text: 'Учебный билет — не для входа. Квадратный узор не является QR-кодом.',
-          ),
-        ],
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(child: child),
+        ),
       ),
     );
   }
@@ -3118,13 +3062,13 @@ class _SheetOption extends StatelessWidget {
         child: AnimatedContainer(
           duration: _D.quick,
           curve: _E.main,
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 52),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: selected ? _C.accentSoft : _C.surface,
             borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
             border: Border.all(
-              color: selected ? _C.accentLine : _C.line,
+              color: selected ? _C.accent : _C.hairline,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -3134,7 +3078,7 @@ class _SheetOption extends StatelessWidget {
                 size: const Size(20, 20),
                 painter: _SelectPainter(selected: selected),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3142,22 +3086,12 @@ class _SheetOption extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       label,
-                      style: _T.sans(
-                        14,
-                        weight: FontWeight.w700,
-                        color: _C.ink,
-                        height: 1.2,
-                      ),
+                      style: _T.sans(14, weight: FontWeight.w700, height: 1.2),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       meta,
-                      style: _T.sans(
-                        11.5,
-                        color: _C.muted,
-                        height: 1.28,
-                        weight: FontWeight.w500,
-                      ),
+                      style: _T.sans(11.5, color: _C.muted, height: 1.3),
                     ),
                   ],
                 ),
@@ -3183,19 +3117,18 @@ class _SelectPainter extends CustomPainter {
         rect.center,
         size.width / 2 - 1,
         Paint()
-          ..color = _C.lineStrong
+          ..color = _C.hairline
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4,
       );
       return;
     }
     canvas.drawCircle(rect.center, size.width / 2, Paint()..color = _C.accent);
-    final Path check = Path()
-      ..moveTo(size.width * 0.26, size.height * 0.52)
-      ..lineTo(size.width * 0.44, size.height * 0.68)
-      ..lineTo(size.width * 0.75, size.height * 0.32);
     canvas.drawPath(
-      check,
+      Path()
+        ..moveTo(size.width * 0.26, size.height * 0.52)
+        ..lineTo(size.width * 0.44, size.height * 0.68)
+        ..lineTo(size.width * 0.75, size.height * 0.32),
       Paint()
         ..color = _C.surface
         ..style = PaintingStyle.stroke
@@ -3209,154 +3142,247 @@ class _SelectPainter extends CustomPainter {
   bool shouldRepaint(covariant _SelectPainter old) => old.selected != selected;
 }
 
-enum _ButtonTone { solid, ghost }
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.label,
-    required this.onTap,
-    this.enabled = true,
-    this.tone = _ButtonTone.solid,
+class _ReminderSheet extends StatelessWidget {
+  const _ReminderSheet({
+    required this.selected,
+    required this.onSelect,
+    required this.onClose,
   });
 
-  final String label;
-  final VoidCallback onTap;
-  final bool enabled;
-  final _ButtonTone tone;
+  final _ReminderChoice? selected;
+  final ValueChanged<_ReminderChoice> onSelect;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final bool solid = tone == _ButtonTone.solid && enabled;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: label,
-      excludeSemantics: true,
-      child: AnimatedOpacity(
-        duration: _D.quick,
-        opacity: enabled ? 1 : 0.45,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: enabled ? onTap : null,
-          child: AnimatedContainer(
-            duration: _D.base,
-            curve: _E.main,
-            constraints: const BoxConstraints(minHeight: 50),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+    return _SheetShell(
+      eyebrow: 'НАПОМИНАНИЕ',
+      title: 'Когда напомнить?',
+      onClose: onClose,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _SheetOption(
+            label: 'За час',
+            meta: 'Короткий сигнал перед началом',
+            selected: selected == _ReminderChoice.hour,
+            onTap: () => onSelect(_ReminderChoice.hour),
+          ),
+          const SizedBox(height: 8),
+          _SheetOption(
+            label: 'За день',
+            meta: 'Чтобы успеть собраться',
+            selected: selected == _ReminderChoice.day,
+            onTap: () => onSelect(_ReminderChoice.day),
+          ),
+          const SizedBox(height: 14),
+          const _DemoNotice(text: 'Учебный режим: уведомление не создаётся.'),
+        ],
+      ),
+    );
+  }
+}
+
+class _DescriptionSheet extends StatelessWidget {
+  const _DescriptionSheet({
+    required this.event,
+    required this.done,
+    required this.onConfirm,
+    required this.onClose,
+  });
+
+  final _EventSpec event;
+  final bool done;
+  final VoidCallback onConfirm;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      eyebrow: 'ОПИСАНИЕ',
+      title: event.title,
+      onClose: onClose,
+      footer: _PrimaryButton(label: 'Понятно', onTap: onConfirm),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _DescriptionRow(label: 'О событии', value: event.blurb),
+          _DescriptionRow(label: 'Место', value: '${event.place}, кампус'),
+          _DescriptionRow(
+            label: 'Организатор',
+            value: '${event.organizer}, студенческое объединение',
+          ),
+          _DescriptionRow(
+            label: 'Условия участия',
+            value: 'Вход по учебной записи, участие бесплатное',
+          ),
+          const SizedBox(height: 6),
+          _DemoNotice(
+            text: done
+                ? 'Описание прочитано. Это учебный экран.'
+                : 'Учебная информация: реальная запись не создаётся.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DescriptionRow extends StatelessWidget {
+  const _DescriptionRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: _T.mono(9.5, letterSpacing: 1.1)),
+          const SizedBox(height: 3),
+          Text(value, style: _T.sans(13.5, color: _C.ink2, height: 1.38)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareSheet extends StatelessWidget {
+  const _ShareSheet({
+    required this.copied,
+    required this.onCopy,
+    required this.onClose,
+  });
+
+  final bool copied;
+  final VoidCallback onCopy;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      eyebrow: 'ПОДЕЛИТЬСЯ',
+      title: 'Пригласи друзей',
+      onClose: onClose,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
-              color: solid ? _C.accent : _C.surface,
-              borderRadius: const BorderRadius.all(Radius.circular(16)),
-              border: Border.all(color: solid ? Colors.transparent : _C.line),
-              boxShadow: solid ? _S.button : null,
+              color: _C.paper,
+              borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Flexible(
+                Expanded(
                   child: Text(
-                    label,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
+                    'campuslife.demo/event/1',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: _T.sans(
-                      14.5,
-                      weight: FontWeight.w800,
-                      color: solid ? _C.surface : _C.ink,
-                      height: 1.2,
-                    ),
+                    style: _T.mono(11.5, color: _C.ink2, letterSpacing: 0.2),
                   ),
                 ),
-                if (solid) ...<Widget>[
-                  const SizedBox(width: 8),
-                  CustomPaint(
-                    size: const Size(14, 14),
-                    painter: _ArrowPainter(color: _C.surface),
+                if (copied)
+                  Text(
+                    'Готово',
+                    style: _T.sans(
+                      11.5,
+                      weight: FontWeight.w800,
+                      color: _C.accent,
+                    ),
                   ),
-                ],
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          _PrimaryButton(
+            label: copied ? 'Готово' : 'Скопировать учебную ссылку',
+            onTap: onCopy,
+            enabled: !copied,
+          ),
+          const SizedBox(height: 12),
+          const _DemoNotice(
+            text: 'Это демонстрация: настоящая ссылка не копируется.',
+          ),
+        ],
       ),
     );
   }
 }
 
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({
-    required this.semanticLabel,
-    required this.onTap,
-    required this.enabled,
-    required this.child,
-    this.highlight = false,
+class _ReportSheet extends StatelessWidget {
+  const _ReportSheet({
+    required this.reason,
+    required this.sent,
+    required this.onReason,
+    required this.onSend,
+    required this.onClose,
   });
 
-  final String semanticLabel;
-  final VoidCallback onTap;
-  final bool enabled;
-  final Widget child;
-  final bool highlight;
+  final _ReportReason? reason;
+  final bool sent;
+  final ValueChanged<_ReportReason> onReason;
+  final VoidCallback onSend;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: semanticLabel,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
-        child: AnimatedContainer(
-          duration: _D.base,
-          curve: _E.main,
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: _C.surface.withValues(alpha: highlight ? 1 : 0.9),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: highlight ? _C.accentLine : _C.line,
-              width: highlight ? 1.4 : 1,
-            ),
-            boxShadow: _S.soft,
+    return _SheetShell(
+      eyebrow: 'ЖАЛОБА',
+      title: 'Что не так с событием?',
+      onClose: onClose,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _PrimaryButton(
+            label: sent ? 'Жалоба отмечена' : 'Отправить учебную жалобу',
+            onTap: onSend,
+            enabled: reason != null && !sent,
           ),
-          child: Center(
-            child: Opacity(opacity: enabled ? 1 : 0.55, child: child),
+          const SizedBox(height: 8),
+          const _DemoNotice(
+            text: 'Учебный режим. Жалоба никуда не отправится.',
           ),
-        ),
+        ],
       ),
-    );
-  }
-}
-
-class _IconTap extends StatelessWidget {
-  const _IconTap({
-    required this.label,
-    required this.onTap,
-    required this.child,
-    this.size = 44,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final Widget child;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Center(child: child),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _SheetOption(
+            label: 'Неверная информация',
+            meta: 'Место или организатор указаны неверно',
+            selected: reason == _ReportReason.wrongInfo,
+            onTap: () => onReason(_ReportReason.wrongInfo),
+          ),
+          const SizedBox(height: 8),
+          _SheetOption(
+            label: 'Неподходящий контент',
+            meta: 'Материалы не для студенческой афиши',
+            selected: reason == _ReportReason.inappropriate,
+            onTap: () => onReason(_ReportReason.inappropriate),
+          ),
+          const SizedBox(height: 8),
+          _SheetOption(
+            label: 'Другая причина',
+            meta: 'Расскажешь подробнее модератору',
+            selected: reason == _ReportReason.other,
+            onTap: () => onReason(_ReportReason.other),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            reason == null
+                ? 'Выбери причину, тогда кнопка станет активной.'
+                : 'Причина выбрана, отправка доступна.',
+            style: _T.sans(11.5, color: _C.muted, height: 1.35),
+          ),
+        ],
       ),
     );
   }
@@ -3392,129 +3418,113 @@ class _ProfileOverlay extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
       duration: _D.express,
-      curve: _E.main,
+      curve: _E.soft,
       builder: (BuildContext context, double value, Widget? child) {
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, (1 - value) * 26),
+            offset: Offset(0, (1 - value) * 20),
             child: child,
           ),
         );
       },
-      child: Container(
-        decoration: const BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.all(Radius.circular(_R.card)),
-          boxShadow: _S.card,
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.all(Radius.circular(_R.card)),
-          child: Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
-                child: Row(
-                  children: <Widget>[
-                    _IconTap(
-                      label: 'Закрыть профиль',
-                      onTap: onClose,
-                      child: CustomPaint(
-                        size: const Size(18, 18),
-                        painter: _BackPainter(color: _C.ink),
-                      ),
+      child: Material(
+        color: _C.paper,
+        child: Column(
+          children: <Widget>[
+            SafeArea(
+              bottom: false,
+              minimum: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+              child: Row(
+                children: <Widget>[
+                  _IconTap(
+                    label: 'Закрыть профиль',
+                    onTap: onClose,
+                    child: CustomPaint(
+                      size: const Size(18, 18),
+                      painter: _BackPainter(color: _C.ink),
                     ),
-                    const Spacer(),
-                    Text(
-                      'УЧЕБНЫЙ ПРОФИЛЬ',
-                      style: _T.mono(9.5, letterSpacing: 1.3),
-                    ),
-                    const Spacer(),
-                    const SizedBox(width: 44),
-                  ],
-                ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'УЧЕБНЫЙ ПРОФИЛЬ',
+                    style: _T.mono(9.5, letterSpacing: 1.3),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 44),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: _C.paper,
-                        borderRadius: const BorderRadius.all(Radius.circular(16)),
-                        border: Border.all(color: _C.line),
-                      ),
-                      child: const Center(child: _PixelAvatar(size: 38)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            'Аня Соколова',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _T.sans(
-                              16.5,
-                              weight: FontWeight.w800,
-                              height: 1.15,
-                            ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+              child: Row(
+                children: <Widget>[
+                  _Avatar(size: 52),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Аня Соколова',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _T.sans(
+                            17,
+                            weight: FontWeight.w800,
+                            height: 1.15,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Участник · 2 курс · Поток CampusLife',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _T.sans(11.5, color: _C.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: <Widget>[
-                    for (final _ProfileTab tab in _ProfileTab.values)
-                      Expanded(
-                        child: _ProfileTabButton(
-                          label: switch (tab) {
-                            _ProfileTab.tickets => 'Билеты',
-                            _ProfileTab.favorites => 'Избранное',
-                            _ProfileTab.settings => 'Настройки',
-                          },
-                          selected: selected == tab,
-                          locked: tab == _ProfileTab.settings && !canSettingsTab,
-                          hint: tab == _ProfileTab.settings && !canSettingsTab,
-                          onTap: () => onTab(tab),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Участник · 2 курс · Поток CampusLife',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _T.sans(11.5, color: _C.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: <Widget>[
+                  for (final _ProfileTab tab in _ProfileTab.values)
+                    Expanded(
+                      child: _ProfileTabButton(
+                        label: switch (tab) {
+                          _ProfileTab.tickets => 'Билеты',
+                          _ProfileTab.favorites => 'Избранное',
+                          _ProfileTab.settings => 'Настройки',
+                        },
+                        selected: selected == tab,
+                        hint: tab == _ProfileTab.settings && !canSettingsTab,
+                        onTap: () => onTab(tab),
                       ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: _C.line),
-              Expanded(
-                child: switch (selected) {
-                  _ProfileTab.tickets => _ProfileTickets(
-                      onTicket: onTicket,
-                      canOpen: canOpenTicket,
-                      ticketOpened: ticketOpened,
                     ),
-                  _ProfileTab.favorites => const _ProfileFavorites(),
-                  _ProfileTab.settings => _ProfileSettings(
-                      canRetry: canRetry,
-                      visited: settingsVisited,
-                      onRetry: onRetry,
-                    ),
-                },
+                ],
               ),
-            ],
-          ),
+            ),
+            const Divider(height: 1, color: _C.hairline),
+            Expanded(
+              child: switch (selected) {
+                _ProfileTab.tickets => _ProfileTickets(
+                    onTicket: onTicket,
+                    canOpen: canOpenTicket,
+                    ticketOpened: ticketOpened,
+                  ),
+                _ProfileTab.favorites => const _ProfileFavorites(),
+                _ProfileTab.settings => _ProfileSettings(
+                    canRetry: canRetry,
+                    visited: settingsVisited,
+                    onRetry: onRetry,
+                  ),
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -3526,14 +3536,12 @@ class _ProfileTabButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.locked = false,
     this.hint = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final bool locked;
   final bool hint;
 
   @override
@@ -3547,7 +3555,7 @@ class _ProfileTabButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          height: 44,
+          height: 46,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border(
@@ -3561,10 +3569,7 @@ class _ProfileTabButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (hint) ...<Widget>[
-                CustomPaint(
-                  size: const Size(5, 5),
-                  painter: _DotPainter(color: _C.accent),
-                ),
+                Container(width: 5, height: 5, color: _C.accent),
                 const SizedBox(width: 5),
               ],
               Flexible(
@@ -3575,11 +3580,7 @@ class _ProfileTabButton extends StatelessWidget {
                   style: _T.sans(
                     12.5,
                     weight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected
-                        ? _C.ink
-                        : locked
-                            ? _C.muted.withValues(alpha: 0.7)
-                            : _C.ink2,
+                    color: selected ? _C.ink : _C.muted,
                   ),
                 ),
               ),
@@ -3589,20 +3590,6 @@ class _ProfileTabButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DotPainter extends CustomPainter {
-  const _DotPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _DotPainter old) => old.color != color;
 }
 
 class _ProfileTickets extends StatelessWidget {
@@ -3619,13 +3606,13 @@ class _ProfileTickets extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       children: <Widget>[
         Text(
           canOpen || ticketOpened
               ? 'Билеты на учебные события'
               : 'Здесь появятся твои билеты',
-          style: _T.sans(13.5, weight: FontWeight.w700, color: _C.ink),
+          style: _T.sans(13.5, weight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
         _ProfileTicketRow(
@@ -3641,11 +3628,11 @@ class _ProfileTickets extends StatelessWidget {
           opened: false,
           onTap: onTicket,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Text(
           canOpen
               ? 'Открой билет, чтобы посмотреть его вживую.'
-              : 'Билет уже открыт — «Далее» доступно под карточкой.',
+              : 'Билет открыт, теперь доступно «Далее».',
           style: _T.sans(11.5, color: _C.muted, height: 1.35),
         ),
       ],
@@ -3678,14 +3665,14 @@ class _ProfileTicketRow extends StatelessWidget {
         onTap: enabled ? onTap : null,
         child: AnimatedOpacity(
           duration: _D.quick,
-          opacity: enabled ? 1 : 0.55,
+          opacity: enabled ? 1 : 0.5,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 56),
+            constraints: const BoxConstraints(minHeight: 58),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: _C.paper,
+              color: _C.surface,
               borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-              border: Border.all(color: _C.line),
+              border: Border.all(color: _C.hairline),
             ),
             child: Row(
               children: <Widget>[
@@ -3693,11 +3680,15 @@ class _ProfileTicketRow extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: _C.surface,
+                    color: _C.accentSoft,
                     borderRadius: const BorderRadius.all(Radius.circular(10)),
-                    border: Border.all(color: _C.line),
                   ),
-                  child: const Center(child: _MiniTicket(size: 22)),
+                  child: Center(
+                    child: CustomPaint(
+                      size: const Size(18, 18),
+                      painter: _MiniTicketPainter(color: _C.accent),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -3729,7 +3720,7 @@ class _ProfileTicketRow extends StatelessWidget {
                           ? 'ОТКРЫТЬ'
                           : 'ПОЗЖЕ',
                   style: _T.mono(
-                    9,
+                    8.5,
                     color: enabled ? _C.accent : _C.muted,
                     letterSpacing: 0.8,
                   ),
@@ -3749,23 +3740,26 @@ class _ProfileFavorites extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       children: <Widget>[
-        Text(
-          'Избранное',
-          style: _T.sans(13.5, weight: FontWeight.w700, color: _C.ink),
-        ),
+        Text('Избранное', style: _T.sans(13.5, weight: FontWeight.w700)),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: _C.paper,
+            color: _C.surface,
             borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-            border: Border.all(color: _C.line),
+            border: Border.all(color: _C.hairline),
           ),
           child: Row(
             children: <Widget>[
-              const PixelFishMark(size: 20, fill: true),
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CustomPaint(
+                  painter: _FishGlyphPainter(color: _C.accent, wave: 0),
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -3777,15 +3771,10 @@ class _ProfileFavorites extends StatelessWidget {
               ),
               Text(
                 '1 СОХРАНЕНО',
-                style: _T.mono(9, color: _C.muted, letterSpacing: 0.8),
+                style: _T.mono(8.5, color: _C.muted, letterSpacing: 0.7),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Событие попадёт сюда после короткого тапа по рыбке.',
-          style: _T.sans(11.5, color: _C.muted, height: 1.35),
         ),
       ],
     );
@@ -3806,7 +3795,7 @@ class _ProfileSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       children: <Widget>[
         Semantics(
           button: true,
@@ -3816,38 +3805,28 @@ class _ProfileSettings extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: canRetry ? onRetry : null,
             child: Container(
-              constraints: const BoxConstraints(minHeight: 56),
+              constraints: const BoxConstraints(minHeight: 58),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: canRetry ? _C.accentSoft : _C.paper,
+                color: canRetry ? _C.accentSoft : _C.surface,
                 borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
                 border: Border.all(
-                  color: canRetry ? _C.accentLine : _C.line,
+                  color: canRetry ? _C.accent : _C.hairline,
+                  width: canRetry ? 1.4 : 1,
                 ),
               ),
               child: Row(
                 children: <Widget>[
-                  CustomPaint(
-                    size: const Size(18, 18),
-                    painter: _LoopPainter(
-                      color: canRetry ? _C.accent : _C.muted,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Пройти обучение заново',
-                      style: _T.sans(
-                        13.5,
-                        weight: FontWeight.w700,
-                        color: _C.ink,
-                      ),
+                      style: _T.sans(13.5, weight: FontWeight.w700),
                     ),
                   ),
                   if (canRetry)
                     Text(
                       visited ? 'НАЙДЕНО' : 'НАЖАТЬ',
-                      style: _T.mono(9, color: _C.accent, letterSpacing: 0.8),
+                      style: _T.mono(8.5, color: _C.accent, letterSpacing: 0.8),
                     ),
                 ],
               ),
@@ -3857,17 +3836,17 @@ class _ProfileSettings extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           canRetry
-              ? 'В настоящем профиле эта кнопка снова откроет обучение.'
-              : 'Обучение повторяется из этой строки. Она откроется на шаге настроек.',
+              ? 'В настоящем профиле эта строка снова откроет обучение.'
+              : 'Строка откроется на шаге настроек.',
           style: _T.sans(11.5, color: _C.muted, height: 1.35),
         ),
         if (visited) ...<Widget>[
           const SizedBox(height: 10),
           const _DemoNotice(
-            text: 'Учебный режим: строка не перезапускает сценарий, она только отмечает, что ты нашёл нужный пункт.',
+            text: 'Учебный режим: строка только отмечает, что ты нашёл нужный пункт.',
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Text('ТЕМА', style: _T.mono(9.5, letterSpacing: 1.1)),
         const SizedBox(height: 6),
         Text(
@@ -3877,6 +3856,67 @@ class _ProfileSettings extends StatelessWidget {
       ],
     );
   }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: _C.surface,
+        shape: BoxShape.circle,
+        border: Border.fromBorderSide(BorderSide(color: _C.hairline)),
+      ),
+      child: Center(
+        child: SizedBox(
+          width: size * 0.62,
+          height: size * 0.62,
+          child: CustomPaint(painter: _AvatarPainter()),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarPainter extends CustomPainter {
+  const _AvatarPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cell = size.width / 7;
+    final Paint ink = Paint()..color = _C.ink;
+    const List<List<int>> head = <List<int>>[
+      <int>[2, 0], <int>[3, 0], <int>[4, 0],
+      <int>[1, 1], <int>[2, 1], <int>[3, 1], <int>[4, 1], <int>[5, 1],
+      <int>[1, 2], <int>[2, 2], <int>[3, 2], <int>[4, 2], <int>[5, 2],
+      <int>[1, 3], <int>[2, 3], <int>[3, 3], <int>[4, 3], <int>[5, 3],
+    ];
+    const List<List<int>> body = <List<int>>[
+      <int>[0, 5], <int>[1, 5], <int>[2, 5], <int>[3, 5], <int>[4, 5], <int>[5, 5], <int>[6, 5],
+      <int>[0, 6], <int>[1, 6], <int>[2, 6], <int>[3, 6], <int>[4, 6], <int>[5, 6], <int>[6, 6],
+    ];
+    for (final List<int> p in body) {
+      canvas.drawRect(
+        Rect.fromLTWH(p[0] * cell, p[1] * cell, cell, cell),
+        Paint()..color = _C.hairline,
+      );
+    }
+    for (final List<int> p in head) {
+      canvas.drawRect(
+        Rect.fromLTWH(p[0] * cell, p[1] * cell, cell, cell),
+        ink,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _SearchOverlay extends StatelessWidget {
@@ -3906,12 +3946,12 @@ class _SearchOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool empty = query.trim().isEmpty;
     return Material(
-      color: _C.surface,
-      elevation: 0,
+      color: _C.paper,
       child: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          SafeArea(
+            bottom: false,
+            minimum: const EdgeInsets.fromLTRB(8, 8, 8, 0),
             child: Row(
               children: <Widget>[
                 _IconTap(
@@ -3923,27 +3963,23 @@ class _SearchOverlay extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  'УЧЕБНЫЙ ПОИСК',
-                  style: _T.mono(9.5, letterSpacing: 1.3),
-                ),
+                Text('УЧЕБНЫЙ ПОИСК', style: _T.mono(9.5, letterSpacing: 1.3)),
                 const Spacer(),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Container(
-              decoration: BoxDecoration(
-                color: _C.paper,
-                borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-                border: Border.all(color: _C.line),
+              decoration: const BoxDecoration(
+                color: _C.surface,
+                borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: <Widget>[
                   CustomPaint(
-                    size: const Size(17, 17),
+                    size: const Size(16, 16),
                     painter: _SearchGlyphPainter(color: _C.muted),
                   ),
                   const SizedBox(width: 8),
@@ -3953,14 +3989,14 @@ class _SearchOverlay extends StatelessWidget {
                       focusNode: focusNode,
                       onChanged: onChanged,
                       textInputAction: TextInputAction.search,
-                      style: _T.sans(14.5, weight: FontWeight.w600, height: 1.2),
+                      style: _T.sans(15, weight: FontWeight.w600, height: 1.2),
                       cursorColor: _C.accent,
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         hintText: 'Например, «робо»',
                         hintStyle: _T.sans(14, color: _C.muted),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
                   ),
@@ -3974,7 +4010,7 @@ class _SearchOverlay extends StatelessWidget {
                       },
                       size: 36,
                       child: CustomPaint(
-                        size: const Size(14, 14),
+                        size: const Size(13, 13),
                         painter: _CrossPainter(color: _C.muted),
                       ),
                     ),
@@ -3983,20 +4019,17 @@ class _SearchOverlay extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    empty
-                        ? 'Данные только локальные: попробуй запрос «робо».'
-                        : results.isEmpty
-                            ? 'Ничего не нашлось. Попробуй «робо» или «баскет».'
-                            : 'Найдено: ${results.length}. Выбери событие.',
-                    style: _T.sans(11.5, color: _C.muted, height: 1.3),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                empty
+                    ? 'Данные только локальные: попробуй «робо».'
+                    : results.isEmpty
+                        ? 'Ничего не нашлось. Попробуй «робо» или «баскет».'
+                        : 'Найдено: ${results.length}. Выбери событие.',
+                style: _T.sans(11.5, color: _C.muted, height: 1.3),
+              ),
             ),
           ),
           if (empty)
@@ -4020,7 +4053,7 @@ class _SearchOverlay extends StatelessWidget {
             ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               itemCount: results.length,
               itemBuilder: (BuildContext context, int index) {
@@ -4038,19 +4071,30 @@ class _SearchOverlay extends StatelessWidget {
           ),
           if (selected != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-              child: Column(
-                children: <Widget>[
-                  _StatusLine(text: 'Найдено: $selected', accent: true),
-                  const SizedBox(height: 8),
-                ],
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _C.surface,
+                    borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+                    border: Border.all(color: _C.accent),
+                  ),
+                  child: Text(
+                    'Найдено: $selected',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _T.sans(
+                      11.5,
+                      weight: FontWeight.w700,
+                      color: _C.accent,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
               ),
             ),
-          const SafeArea(
-            top: false,
-            minimum: EdgeInsets.only(bottom: 6),
-            child: SizedBox(height: 2),
-          ),
         ],
       ),
     );
@@ -4073,16 +4117,15 @@ class _ChipButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 36),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: _C.accentSoft,
-            borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-            border: Border.all(color: _C.accentLine),
+          constraints: const BoxConstraints(minHeight: 38),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: const BoxDecoration(
+            color: _C.surface,
+            borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
           ),
           child: Text(
             label,
-            style: _T.sans(12, weight: FontWeight.w700, color: _C.accent),
+            style: _T.sans(12.5, weight: FontWeight.w700, color: _C.ink2),
           ),
         ),
       ),
@@ -4114,24 +4157,26 @@ class _SearchResultTile extends StatelessWidget {
         child: AnimatedContainer(
           duration: _D.quick,
           curve: _E.main,
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: 58),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? _C.accentSoft : _C.paper,
+            color: selected ? _C.accentSoft : _C.surface,
             borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-            border: Border.all(color: selected ? _C.accentLine : _C.line),
+            border: Border.all(
+              color: selected ? _C.accent : _C.hairline,
+            ),
           ),
           child: Row(
             children: <Widget>[
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius: const BorderRadius.all(Radius.circular(10)),
-                  border: Border.all(color: _C.line),
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CustomPaint(
+                  painter: _FishGlyphPainter(
+                    color: selected ? _C.accent : _C.muted,
+                    wave: 0,
+                  ),
                 ),
-                child: const Center(child: PixelFishMark(size: 18)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -4158,267 +4203,13 @@ class _SearchResultTile extends StatelessWidget {
               if (selected)
                 Text(
                   'ВЫБРАНО',
-                  style: _T.mono(8.5, color: _C.accent, letterSpacing: 0.8),
+                  style: _T.mono(8.5, color: _C.accent, letterSpacing: 0.7),
                 ),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-class _SideLegend extends StatelessWidget {
-  const _SideLegend({required this.phase});
-
-  final _Phase phase;
-
-  static const List<String> _names = <String>[
-    'Свайп',
-    'Медиа',
-    'Избранное',
-    'Запись',
-    'Напоминание',
-    'Описание',
-    'Поделиться',
-    'Жалоба',
-    'Поиск',
-    'Профиль',
-    'Настройки',
-  ];
-
-  int get _current {
-    return switch (phase) {
-      _Phase.swipeFeed => 1,
-      _Phase.media => 2,
-      _Phase.favorite => 3,
-      _Phase.register => 4,
-      _Phase.reminder => 5,
-      _Phase.description => 6,
-      _Phase.share => 7,
-      _Phase.report => 8,
-      _Phase.search => 9,
-      _Phase.profile => 10,
-      _Phase.settings => 11,
-      _ => 0,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('СЦЕНАРИЙ', style: _T.mono(9.5, letterSpacing: 1.2)),
-        const SizedBox(height: 8),
-        for (int i = 0; i < _names.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 5,
-                  height: 5,
-                  color: i + 1 < _current
-                      ? _C.accent
-                      : i + 1 == _current
-                          ? _C.ink
-                          : _C.lineStrong,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${i + 1}'.padLeft(2, '0'),
-                  style: _T.mono(
-                    9,
-                    color: i + 1 == _current ? _C.ink : _C.muted,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _names[i],
-                  style: _T.sans(
-                    11.5,
-                    weight: i + 1 == _current ? FontWeight.w800 : FontWeight.w500,
-                    color: i + 1 == _current
-                        ? _C.ink
-                        : i + 1 < _current
-                            ? _C.ink2
-                            : _C.muted,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-        border: Border.all(color: _C.line),
-      ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: _T.mono(9, color: _C.ink2, letterSpacing: 0.7),
-      ),
-    );
-  }
-}
-
-class _MediaIndicator extends StatelessWidget {
-  const _MediaIndicator({
-    required this.count,
-    required this.index,
-    required this.textScale,
-  });
-
-  final int count;
-  final int index;
-  final double textScale;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Медиа ${index + 1} из $count',
-      excludeSemantics: true,
-      child: Row(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: _C.surface.withValues(alpha: 0.92),
-              borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-              border: Border.all(color: _C.line),
-            ),
-            child: Text(
-              '${index + 1}/$count',
-              style: _T.mono(9.5, color: _C.ink2, letterSpacing: 0.6),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (int i = 0; i < count; i++)
-                AnimatedContainer(
-                  duration: _D.base,
-                  curve: _E.main,
-                  width: i == index ? 12 : 5,
-                  height: 5,
-                  margin: const EdgeInsets.only(right: 3),
-                  decoration: BoxDecoration(
-                    color: i == index ? _C.accent : _C.ink.withValues(alpha: 0.28),
-                    borderRadius: const BorderRadius.all(Radius.circular(1.5)),
-                  ),
-                ),
-            ],
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: _C.surface.withValues(alpha: 0.92),
-              borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-              border: Border.all(color: _C.line),
-            ),
-            child: Text(
-              'УЧЕБНЫЕ МЕДИА',
-              style: _T.mono(8, color: _C.muted, letterSpacing: 0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusLine extends StatelessWidget {
-  const _StatusLine({required this.text, this.accent = false});
-
-  final String text;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      liveRegion: true,
-      label: text,
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: accent ? _C.accentSoft : _C.surface,
-          borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-          border: Border.all(color: accent ? _C.accentLine : _C.line),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: accent ? _C.accent : _C.ink2,
-                borderRadius: const BorderRadius.all(Radius.circular(1.5)),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _T.sans(
-                  11.5,
-                  weight: FontWeight.w700,
-                  color: accent ? _C.accent : _C.ink2,
-                  height: 1.2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HintArea {
-  const _HintArea({
-    required this.rect,
-    required this.align,
-    required this.tail,
-  });
-
-  final Rect rect;
-  final Alignment align;
-  final _HintTail tail;
-}
-
-class _GlyphIcon extends StatelessWidget {
-  const _GlyphIcon({required this.painter, required this.size});
-
-  final CustomPainter painter;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(size: Size(size, size), painter: painter);
   }
 }
 
@@ -4432,12 +4223,12 @@ class _SearchGlyphPainter extends CustomPainter {
     final Paint stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-    final double r = size.width * 0.3;
-    final Offset center = Offset(size.width * 0.43, size.height * 0.43);
+      ..strokeWidth = 1.7;
+    final double r = size.width * 0.32;
+    final Offset center = Offset(size.width * 0.44, size.height * 0.44);
     canvas.drawCircle(center, r, stroke);
     canvas.drawLine(
-      Offset(center.dx + r * 0.75, center.dy + r * 0.75),
+      Offset(center.dx + r * 0.72, center.dy + r * 0.72),
       Offset(size.width * 0.86, size.height * 0.86),
       stroke,
     );
@@ -4447,428 +4238,16 @@ class _SearchGlyphPainter extends CustomPainter {
   bool shouldRepaint(covariant _SearchGlyphPainter old) => old.color != color;
 }
 
-class _BellGlyphPainter extends CustomPainter {
-  const _BellGlyphPainter({required this.color, required this.active});
+class _FishGlyphPainter extends CustomPainter {
+  const _FishGlyphPainter({required this.color, required this.wave});
 
   final Color color;
-  final bool active;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round;
-    final Path bell = Path()
-      ..moveTo(size.width * 0.2, size.height * 0.66)
-      ..lineTo(size.width * 0.28, size.height * 0.54)
-      ..lineTo(size.width * 0.28, size.height * 0.42)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 0.16,
-        size.width * 0.72,
-        size.height * 0.42,
-      )
-      ..lineTo(size.width * 0.72, size.height * 0.54)
-      ..lineTo(size.width * 0.8, size.height * 0.66)
-      ..close();
-    canvas.drawPath(bell, paint);
-    canvas.drawLine(
-      Offset(size.width * 0.42, size.height * 0.74),
-      Offset(size.width * 0.58, size.height * 0.74),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.5, size.height * 0.74),
-      Offset(size.width * 0.5, size.height * 0.8),
-      paint,
-    );
-    if (active) {
-      canvas.drawCircle(
-        Offset(size.width * 0.78, size.height * 0.24),
-        2.6,
-        Paint()..color = color,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BellGlyphPainter old) =>
-      old.color != color || old.active != active;
-}
-
-class _InfoGlyphPainter extends CustomPainter {
-  const _InfoGlyphPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height / 2),
-      size.width * 0.4,
-      paint,
-    );
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height * 0.33),
-      1.2,
-      Paint()..color = color,
-    );
-    canvas.drawLine(
-      Offset(size.width / 2, size.height * 0.46),
-      Offset(size.width / 2, size.height * 0.69),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _InfoGlyphPainter old) => old.color != color;
-}
-
-class _ShareGlyphPainter extends CustomPainter {
-  const _ShareGlyphPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-    final Offset top = Offset(size.width * 0.68, size.height * 0.24);
-    final Offset left = Offset(size.width * 0.26, size.height * 0.5);
-    final Offset bottom = Offset(size.width * 0.68, size.height * 0.76);
-    canvas.drawLine(top, left, stroke);
-    canvas.drawLine(left, bottom, stroke);
-    canvas.drawCircle(top, size.width * 0.11, stroke);
-    canvas.drawCircle(left, size.width * 0.11, stroke);
-    canvas.drawCircle(bottom, size.width * 0.11, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ShareGlyphPainter old) => old.color != color;
-}
-
-class _FlagGlyphPainter extends CustomPainter {
-  const _FlagGlyphPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawLine(
-      Offset(size.width * 0.3, size.height * 0.16),
-      Offset(size.width * 0.3, size.height * 0.84),
-      stroke,
-    );
-    final Path flag = Path()
-      ..moveTo(size.width * 0.3, size.height * 0.2)
-      ..lineTo(size.width * 0.76, size.height * 0.2)
-      ..lineTo(size.width * 0.64, size.height * 0.36)
-      ..lineTo(size.width * 0.76, size.height * 0.52)
-      ..lineTo(size.width * 0.3, size.height * 0.52)
-      ..close();
-    canvas.drawPath(flag, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FlagGlyphPainter old) => old.color != color;
-}
-
-class _CrossPainter extends CustomPainter {
-  const _CrossPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..strokeWidth = 1.7
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(size.width * 0.22, size.height * 0.22),
-      Offset(size.width * 0.78, size.height * 0.78),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.78, size.height * 0.22),
-      Offset(size.width * 0.22, size.height * 0.78),
-      stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _CrossPainter old) => old.color != color;
-}
-
-class _BackPainter extends CustomPainter {
-  const _BackPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..strokeWidth = 1.9
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final Path path = Path()
-      ..moveTo(size.width * 0.62, size.height * 0.2)
-      ..lineTo(size.width * 0.32, size.height * 0.5)
-      ..lineTo(size.width * 0.62, size.height * 0.8);
-    canvas.drawPath(path, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BackPainter old) => old.color != color;
-}
-
-class _ArrowPainter extends CustomPainter {
-  const _ArrowPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..strokeWidth = 1.9
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawLine(
-      Offset(size.width * 0.16, size.height * 0.5),
-      Offset(size.width * 0.82, size.height * 0.5),
-      stroke,
-    );
-    final Path head = Path()
-      ..moveTo(size.width * 0.58, size.height * 0.24)
-      ..lineTo(size.width * 0.84, size.height * 0.5)
-      ..lineTo(size.width * 0.58, size.height * 0.76);
-    canvas.drawPath(head, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArrowPainter old) => old.color != color;
-}
-
-class _LoopPainter extends CustomPainter {
-  const _LoopPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(size.width / 2, size.height / 2),
-        radius: size.width * 0.33,
-      ),
-      0.5,
-      5.2,
-      false,
-      stroke,
-    );
-    final Path head = Path()
-      ..moveTo(size.width * 0.66, size.height * 0.18)
-      ..lineTo(size.width * 0.86, size.height * 0.3)
-      ..lineTo(size.width * 0.64, size.height * 0.36);
-    canvas.drawPath(head, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _LoopPainter old) => old.color != color;
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: const _AvatarPainter(),
-    );
-  }
-}
-
-class _PixelAvatar extends StatelessWidget {
-  const _PixelAvatar({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(painter: const _PixelAvatarPainter()),
-    );
-  }
-}
-
-class _AvatarPainter extends CustomPainter {
-  const _AvatarPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double cell = size.width / 8;
-    final Paint ink = Paint()..color = _C.ink;
-    final Paint soft = Paint()..color = _C.lineStrong;
-    final List<Offset> head = <Offset>[
-      const Offset(2, 1),
-      const Offset(3, 1),
-      const Offset(4, 1),
-      const Offset(2, 2),
-      const Offset(3, 2),
-      const Offset(4, 2),
-      const Offset(5, 2),
-      const Offset(2, 3),
-      const Offset(3, 3),
-      const Offset(4, 3),
-      const Offset(5, 3),
-    ];
-    final List<Offset> body = <Offset>[
-      const Offset(1, 5),
-      const Offset(2, 5),
-      const Offset(3, 5),
-      const Offset(4, 5),
-      const Offset(5, 5),
-      const Offset(6, 5),
-      const Offset(1, 6),
-      const Offset(2, 6),
-      const Offset(3, 6),
-      const Offset(4, 6),
-      const Offset(5, 6),
-      const Offset(6, 6),
-      const Offset(1, 7),
-      const Offset(2, 7),
-      const Offset(3, 7),
-      const Offset(4, 7),
-      const Offset(5, 7),
-      const Offset(6, 7),
-    ];
-    for (final Offset point in body) {
-      canvas.drawRect(
-        Rect.fromLTWH(point.dx * cell, point.dy * cell, cell, cell),
-        soft,
-      );
-    }
-    for (final Offset point in head) {
-      canvas.drawRect(
-        Rect.fromLTWH(point.dx * cell, point.dy * cell, cell, cell),
-        ink,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _PixelAvatarPainter extends CustomPainter {
-  const _PixelAvatarPainter();
-
-  static const List<String> _rows = <String>[
-    '  bbbb  ',
-    ' bbbbbb ',
-    'bbEbbEbb',
-    ' bbbbbb ',
-    ' bbbbbb ',
-    '  bmmb  ',
-    '  bbbb  ',
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double cell = size.width / 8;
-    for (int y = 0; y < _rows.length; y++) {
-      for (int x = 0; x < _rows[y].length; x++) {
-        final String ch = _rows[y][x];
-        if (ch == ' ') continue;
-        final Color color = switch (ch) {
-          'E' => _C.surface,
-          'm' => _C.accentLine,
-          _ => _C.accent,
-        };
-        canvas.drawRect(
-          Rect.fromLTWH(x * cell, y * cell, cell, cell),
-          Paint()..color = color,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _PixelFishMark extends StatelessWidget {
-  const _PixelFishMark({required this.size, this.fill = false});
-
-  final double size;
-  final bool fill;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: fill ? _C.accent : _C.surface,
-        borderRadius: BorderRadius.all(Radius.circular(size * 0.28)),
-        border: Border.all(color: fill ? Colors.transparent : _C.line),
-      ),
-      padding: EdgeInsets.all(size * 0.16),
-      child: CustomPaint(
-        painter: _FishPainter(
-          color: fill ? _C.surface : _C.ink,
-          fill: true,
-          glow: false,
-          wiggle: 0,
-        ),
-      ),
-    );
-  }
-}
-
-class _FishPainter extends CustomPainter {
-  const _FishPainter({
-    required this.color,
-    required this.fill,
-    required this.glow,
-    required this.wiggle,
-  });
-
-  final Color color;
-  final bool fill;
-  final bool glow;
-  final double wiggle;
+  final double wave;
 
   @override
   void paint(Canvas canvas, Size size) {
     final double cell = size.width / 10;
-    final double top = size.height / 2 - cell * 3 + wiggle * cell * 0.35;
-    final List<String> rows = <String>[
+    const List<String> rows = <String>[
       '   ####   ',
       ' ##@@@@#  ',
       '#@@@@@@@# ',
@@ -4878,564 +4257,83 @@ class _FishPainter extends CustomPainter {
       '   ####   ',
     ];
     final Paint solid = Paint()..color = color;
+    final double offset = wave * cell * 0.4;
     for (int y = 0; y < rows.length; y++) {
       for (int x = 0; x < rows[y].length; x++) {
-        final String ch = rows[y][x];
-        if (ch == ' ') continue;
-        final Rect r = Rect.fromLTWH(
-          x * cell * 0.9,
-          top + y * cell * 0.9,
-          cell * 0.86,
-          cell * 0.86,
+        if (rows[y][x] == ' ') continue;
+        canvas.drawRect(
+          Rect.fromLTWH(
+            x * cell,
+            y * cell + offset * (y - 3) / 3,
+            cell - 0.6,
+            cell - 0.6,
+          ),
+          solid,
         );
-        if (ch == '#') {
-          if (fill) {
-            canvas.drawRect(r, solid);
-          } else {
-            canvas.drawRect(
-              r,
-              Paint()
-                ..color = color
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 1.4,
-            );
-          }
-        } else {
-          canvas.drawRect(r, solid);
-        }
       }
     }
-    final Rect eye = Rect.fromLTWH(
-      cell * 2.7,
-      top + cell * 1.6,
-      cell * 0.9,
-      cell * 0.9,
-    );
-    canvas.drawRect(eye, Paint()..color = fill ? _C.surface : color);
-    if (glow) {
-      canvas.drawRect(
-        Rect.fromLTWH(0, top - cell * 0.4, size.width, cell * 0.22),
-        Paint()..color = _C.glow.withValues(alpha: 0.45),
-      );
-    }
   }
 
   @override
-  bool shouldRepaint(covariant _FishPainter old) =>
-      old.color != color ||
-      old.fill != fill ||
-      old.glow != glow ||
-      old.wiggle != wiggle;
-}
-
-class _HoldRingPainter extends CustomPainter {
-  const _HoldRingPainter({required this.progress, required this.armed});
-
-  final double progress;
-  final bool armed;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect rect = Rect.fromCircle(
-      center: Offset(size.width / 2, size.height / 2),
-      radius: size.width * 0.44,
-    );
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      math.pi * 2 * progress.clamp(0.0, 1.0),
-      false,
-      Paint()
-        ..color = armed ? _C.accent : _C.glow
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _HoldRingPainter old) =>
-      old.progress != progress || old.armed != armed;
-}
-
-class _PixelBurstPainter extends CustomPainter {
-  const _PixelBurstPainter({
-    required this.progress,
-    required this.origin,
-    required this.color,
-    required this.count,
-    required this.reduced,
-  });
-
-  final double progress;
-  final Offset origin;
-  final Color color;
-  final int count;
-  final bool reduced;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (reduced) return;
-    final double t = progress.clamp(0.0, 1.0);
-    if (t <= 0 || t >= 1) return;
-    final double fade = 1 - t;
-    for (int i = 0; i < count; i++) {
-      final double angle = (math.pi * 2 / count) * i + 0.4;
-      final double distance = 10 + 26 * Curves.easeOut.transform(t);
-      final double side = (i.isEven ? 4.4 : 3.2) * (0.7 + fade * 0.6);
-      final Offset center = origin + Offset(math.cos(angle), math.sin(angle)) * distance;
-      canvas.drawRect(
-        Rect.fromCenter(center: center, width: side, height: side),
-        Paint()..color = color.withValues(alpha: 0.15 + 0.7 * fade),
-      );
-    }
-    canvas.drawCircle(
-      origin,
-      4 + 14 * t,
-      Paint()
-        ..color = color.withValues(alpha: 0.18 * fade)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PixelBurstPainter old) =>
-      old.progress != progress || old.origin != origin || old.count != count;
-}
-
-class _TouchDemoPainter extends CustomPainter {
-  const _TouchDemoPainter({
-    required this.kind,
-    required this.t,
-    required this.geo,
-  });
-
-  final _DemoKind kind;
-  final double t;
-  final _FeedGeometry geo;
-
-  Offset get _start {
-    switch (kind) {
-      case _DemoKind.swipeUp:
-      case _DemoKind.swipeLeft:
-      case _DemoKind.holdDrag:
-        return Offset(
-          geo.card.center.dx,
-          geo.card.top + (geo.mediaBottom - geo.card.top) * 0.5,
-        );
-      case _DemoKind.tapFish:
-        return geo.fish;
-      case _DemoKind.tapBell:
-        return geo.bell;
-      case _DemoKind.tapInfo:
-        return geo.info;
-      case _DemoKind.tapShare:
-        return geo.share;
-      case _DemoKind.tapFlag:
-        return geo.flag;
-      case _DemoKind.tapSearch:
-        return Offset(geo.card.right - 32, geo.card.top + 32);
-      case _DemoKind.tapProfile:
-        return Offset(geo.card.left + 32, geo.card.top + 32);
-      case _DemoKind.none:
-        return geo.card.center;
-    }
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (kind == _DemoKind.none) return;
-    final double phase = t % 1;
-    final Offset start = _start;
-    double touch = 0;
-    double press = 0;
-    Offset end = start;
-    if (kind == _DemoKind.swipeUp) {
-      touch = (phase * 1.5).clamp(0.0, 1.0);
-      press = touch > 0 ? 1 : 0;
-      end = start - Offset(0, 74 * Curves.easeInOut.transform(touch));
-    } else if (kind == _DemoKind.swipeLeft) {
-      touch = (phase * 1.5).clamp(0.0, 1.0);
-      press = touch > 0 ? 1 : 0;
-      end = start - Offset(96 * Curves.easeInOut.transform(touch), 0);
-    } else if (kind == _DemoKind.holdDrag) {
-      final double hold = (phase / 0.55).clamp(0.0, 1.0);
-      final double drag = ((phase - 0.42) / 0.58).clamp(0.0, 1.0);
-      touch = 1;
-      press = 1;
-      end = start - Offset(geo.travel * 0.86 * Curves.easeInOut.transform(drag), 0);
-      canvas.drawArc(
-        Rect.fromCircle(center: start, radius: 17),
-        -math.pi / 2,
-        math.pi * 2 * hold,
-        false,
-        Paint()
-          ..color = _C.accent
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-    } else {
-      final double cycle = phase < 0.5 ? phase / 0.5 : (1 - phase) / 0.5;
-      touch = 1;
-      press = cycle;
-      end = start;
-    }
-    final Offset pos = Offset.lerp(start, end, 1) ?? start;
-    if (kind == _DemoKind.swipeUp || kind == _DemoKind.swipeLeft || kind == _DemoKind.holdDrag) {
-      final Offset current = kind == _DemoKind.holdDrag ? end : end;
-      canvas.drawCircle(
-        current,
-        7 + 15 * press,
-        Paint()..color = _C.ink.withValues(alpha: 0.12 * press),
-      );
-      final Offset trailStart = kind == _DemoKind.holdDrag ? start : start;
-      final double distance = (current - trailStart).distance;
-      if (distance > 6) {
-        final int steps = (distance / 12).floor().clamp(1, 8);
-        for (int i = 0; i < steps; i++) {
-          final Offset p = Offset.lerp(trailStart, current, i / steps + 0.06)!;
-          canvas.drawRect(
-            Rect.fromCenter(center: p, width: 3, height: 3),
-            Paint()..color = _C.ink.withValues(alpha: 0.18),
-          );
-        }
-      }
-    }
-    canvas.drawCircle(pos, 9, Paint()..color = _C.ink);
-    canvas.drawCircle(
-      pos,
-      15,
-      Paint()
-        ..color = _C.ink.withValues(alpha: 0.55)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4,
-    );
-    if (kind == _DemoKind.tapFish ||
-        kind == _DemoKind.tapBell ||
-        kind == _DemoKind.tapInfo ||
-        kind == _DemoKind.tapShare ||
-        kind == _DemoKind.tapFlag ||
-        kind == _DemoKind.tapSearch ||
-        kind == _DemoKind.tapProfile) {
-      canvas.drawCircle(
-        pos,
-        15 + 9 * press,
-        Paint()
-          ..color = _C.accent.withValues(alpha: 0.4 * (1 - press))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TouchDemoPainter old) =>
-      old.t != t || old.kind != kind || old.geo != geo;
-}
-
-class _SceneArt extends StatelessWidget {
-  const _SceneArt({required this.kind});
-
-  final _SceneKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: CustomPaint(
-        painter: switch (kind) {
-          _SceneKind.court => const _CourtScenePainter(),
-          _SceneKind.lab => const _LabScenePainter(),
-          _SceneKind.waves => const _WavesScenePainter(),
-          _SceneKind.video => const _VideoScenePainter(),
-        },
-        child: const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-class _CourtScenePainter extends CustomPainter {
-  const _CourtScenePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.mist);
-    final Paint block = Paint()..color = _C.surface;
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.12, size.height * 0.3, size.width * 0.34, size.height * 0.4),
-      block,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.54, size.height * 0.2, size.width * 0.3, size.height * 0.24),
-      Paint()..color = _C.surface.withValues(alpha: 0.75),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.54, size.height * 0.5, size.width * 0.3, size.height * 0.3),
-      block,
-    );
-    final Paint accent = Paint()..color = _C.glow.withValues(alpha: 0.55);
-    for (int i = 0; i < 6; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          size.width * 0.12 + i * size.width * 0.055,
-          size.height * 0.74,
-          size.width * 0.03,
-          size.height * 0.03,
-        ),
-        accent,
-      );
-    }
-    final Paint ink = Paint()..color = _C.ink;
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.2, size.height * 0.42, size.width * 0.12, size.height * 0.05),
-      ink,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.6, size.height * 0.3, size.width * 0.14, size.height * 0.04),
-      Paint()..color = _C.accent,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _LabScenePainter extends CustomPainter {
-  const _LabScenePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.lab);
-    final Paint grid = Paint()
-      ..color = _C.accent.withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    const double step = 26;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-    }
-    final Paint accent = Paint()..color = _C.accent;
-    final List<Rect> blocks = <Rect>[
-      Rect.fromLTWH(size.width * 0.18, size.height * 0.36, 22, 22),
-      Rect.fromLTWH(size.width * 0.18 + 26, size.height * 0.36 + 26, 18, 18),
-      Rect.fromLTWH(size.width * 0.62, size.height * 0.24, 30, 12),
-      Rect.fromLTWH(size.width * 0.62, size.height * 0.24 + 16, 14, 14),
-      Rect.fromLTWH(size.width * 0.5, size.height * 0.62, 16, 16),
-    ];
-    for (final Rect rect in blocks) {
-      canvas.drawRect(rect, accent);
-    }
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.66, size.height * 0.58, 26, 26),
-      Paint()..color = _C.glow.withValues(alpha: 0.6),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.12, size.height * 0.78, size.width * 0.34, 6),
-      Paint()..color = _C.surface,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _WavesScenePainter extends CustomPainter {
-  const _WavesScenePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.sand);
-    final Paint wave = Paint()
-      ..color = _C.accent.withValues(alpha: 0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    for (int i = 0; i < 5; i++) {
-      final Path path = Path();
-      final double baseY = size.height * (0.3 + i * 0.11);
-      path.moveTo(0, baseY);
-      for (double x = 0; x <= size.width; x += 8) {
-        path.lineTo(x, baseY + math.sin((x / size.width) * math.pi * 2 + i) * 6);
-      }
-      canvas.drawPath(path, wave);
-    }
-    final Paint block = Paint()..color = _C.surface.withValues(alpha: 0.9);
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.16, size.height * 0.16, size.width * 0.3, size.height * 0.1),
-      block,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.5, size.height * 0.66, size.width * 0.34, size.height * 0.12),
-      block,
-    );
-    final Paint accent = Paint()..color = _C.accent;
-    for (int i = 0; i < 4; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          size.width * 0.22 + i * 14,
-          size.height * 0.8,
-          8,
-          8,
-        ),
-        accent,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _VideoScenePainter extends CustomPainter {
-  const _VideoScenePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.paperDeep);
-    final Paint frame = Paint()..color = _C.surface;
-    final Rect screen = Rect.fromLTWH(
-      size.width * 0.14,
-      size.height * 0.24,
-      size.width * 0.72,
-      size.height * 0.36,
-    );
-    canvas.drawRect(screen, frame);
-    canvas.drawRect(
-      Rect.fromLTWH(
-        size.width * 0.14,
-        size.height * 0.62,
-        size.width * 0.72,
-        6,
-      ),
-      Paint()..color = _C.line,
-    );
-    final Offset center = screen.center;
-    canvas.drawCircle(center, 22, Paint()..color = _C.ink.withValues(alpha: 0.9));
-    final Path play = Path()
-      ..moveTo(center.dx - 6, center.dy - 9)
-      ..lineTo(center.dx + 10, center.dy)
-      ..lineTo(center.dx - 6, center.dy + 9)
-      ..close();
-    canvas.drawPath(play, Paint()..color = _C.surface);
-    final Paint accent = Paint()..color = _C.accent;
-    for (int i = 0; i < 3; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          size.width * 0.16 + i * 12,
-          size.height * 0.72,
-          7,
-          7,
-        ),
-        accent,
-      );
-    }
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * 0.56, size.height * 0.7, size.width * 0.28, 10),
-      Paint()..color = _C.line,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _FishGlyphPainter old) =>
+      old.color != color || old.wave != wave;
 }
 
 class _IntroArt extends StatelessWidget {
-  const _IntroArt({
-    required this.controller,
-    required this.height,
-    required this.reduceMotion,
-  });
+  const _IntroArt({required this.controller, required this.reduceMotion});
 
   final Animation<double> controller;
-  final double height;
   final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height,
+      height: 168,
       width: double.infinity,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.all(Radius.circular(_R.card)),
-          boxShadow: _S.card,
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.all(Radius.circular(_R.card)),
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (BuildContext context, Widget? child) {
-              return CustomPaint(
-                painter: _IntroPainter(
-                  progress: reduceMotion ? 1 : controller.value,
-                  reduceMotion: reduceMotion,
-                ),
-                child: const SizedBox.expand(),
-              );
-            },
-          ),
-        ),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (BuildContext context, Widget? child) {
+          return CustomPaint(
+            painter: _IntroPainter(
+              progress: reduceMotion ? 1 : controller.value,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _IntroPainter extends CustomPainter {
-  const _IntroPainter({required this.progress, required this.reduceMotion});
+  const _IntroPainter({required this.progress});
 
   final double progress;
-  final bool reduceMotion;
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.surface);
-    final Paint wash = Paint()..color = _C.glowSoft;
-    canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.62, size.width, size.height * 0.38),
-      wash,
-    );
-    final double t = reduceMotion ? 1 : Curves.easeOutCubic.transform(progress);
+    final double t = Curves.easeOutCubic.transform(_saturate(progress));
     final Offset center = Offset(size.width * 0.5, size.height * 0.52);
-    final Paint particle = Paint()..color = _C.glow.withValues(alpha: 0.55);
-    for (int i = 0; i < 14; i++) {
-      final double angle = i * 0.9;
-      final double radius = 30 + (i % 5) * 14;
-      final Offset p = center + Offset(math.cos(angle), math.sin(angle) * 0.5) * radius;
-      final double side = i.isEven ? 4 : 3;
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.66, size.width, size.height * 0.34),
+      Paint()..color = _C.accentSoft,
+    );
+    for (int i = 0; i < 12; i++) {
+      final double angle = i * 0.86;
+      final double radius = 34 + (i % 4) * 16;
+      final Offset p = center + Offset(math.cos(angle), math.sin(angle) * 0.55) * radius;
       canvas.drawRect(
         Rect.fromCenter(
-          center: Offset(p.dx, p.dy + (1 - t) * 8),
-          width: side,
-          height: side,
+          center: Offset(p.dx, p.dy + (1 - t) * 10),
+          width: i.isEven ? 4 : 3,
+          height: i.isEven ? 4 : 3,
         ),
-        particle,
+        Paint()..color = _C.accent.withValues(alpha: 0.22 + 0.4 * t),
       );
     }
     canvas.save();
     canvas.translate(center.dx, center.dy);
-    canvas.scale(0.85 + t * 0.15);
-    final double wiggle = reduceMotion ? 0 : math.sin(progress * math.pi * 2) * 0.25;
-    _drawLargeFish(canvas, wiggle);
-    canvas.restore();
-    final Paint trail = Paint()..color = _C.accent.withValues(alpha: 0.25);
-    for (int i = 0; i < 5; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          size.width * 0.1 + i * 12,
-          size.height * 0.82,
-          8 - i,
-          8 - i,
-        ),
-        trail,
-      );
-    }
-  }
-
-  void _drawLargeFish(Canvas canvas, double wiggle) {
+    canvas.scale(0.88 + t * 0.12);
+    const double cell = 13;
     const List<String> rows = <String>[
       '    #####      ',
       '  ##@@@@@##    ',
@@ -5445,76 +4343,54 @@ class _IntroPainter extends CustomPainter {
       '  ##@@@@@##    ',
       '    #####      ',
     ];
-    const double cell = 14;
-    final double top = -cell * 3 + wiggle * 4;
-    final Paint solid = Paint()..color = _C.ink;
+    final Paint ink = Paint()..color = _C.ink;
     final Paint accent = Paint()..color = _C.accent;
     for (int y = 0; y < rows.length; y++) {
       for (int x = 0; x < rows[y].length; x++) {
         final String ch = rows[y][x];
         if (ch == ' ') continue;
-        final Rect r = Rect.fromLTWH(
-          x * cell - cell * 6.5,
-          top + y * cell,
-          cell - 1.5,
-          cell - 1.5,
+        canvas.drawRect(
+          Rect.fromLTWH(
+            x * cell - cell * 7,
+            y * cell - cell * 3.5,
+            cell - 1.4,
+            cell - 1.4,
+          ),
+          ch == '#' ? accent : ink,
         );
-        canvas.drawRect(r, ch == '#' ? accent : solid);
       }
     }
     canvas.drawRect(
-      Rect.fromLTWH(-cell * 4.4, top + cell * 1.6, cell * 0.9, cell * 0.9),
+      Rect.fromLTWH(-cell * 4.6, -cell * 1.6, cell * 0.9, cell * 0.9),
       Paint()..color = _C.surface,
     );
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _IntroPainter old) =>
-      old.progress != progress || old.reduceMotion != reduceMotion;
+  bool shouldRepaint(covariant _IntroPainter old) => old.progress != progress;
 }
 
 class _FinaleArt extends StatelessWidget {
-  const _FinaleArt({required this.controller, required this.height});
+  const _FinaleArt({required this.controller, required this.reduceMotion});
 
   final Animation<double> controller;
-  final double height;
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height,
+      height: 168,
       width: double.infinity,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.all(Radius.circular(_R.card)),
-          boxShadow: _S.card,
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.all(Radius.circular(_R.card)),
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (BuildContext context, Widget? child) {
-              final double t = controller.value;
-              return Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _FinalePainter(progress: t),
-                    ),
-                  ),
-                  Center(
-                    child: SizedBox(
-                      width: 96,
-                      height: 96,
-                      child: _PixelFishMark(size: 96, fill: true),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (BuildContext context, Widget? child) {
+          return CustomPaint(
+            painter: _FinalePainter(
+              progress: reduceMotion ? 1 : controller.value,
+            ),
+          );
+        },
       ),
     );
   }
@@ -5527,27 +4403,50 @@ class _FinalePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = _C.surface);
-    final Paint ring = Paint()..color = _C.glowSoft;
+    final double t = _saturate(progress);
     canvas.drawRect(
       Rect.fromLTWH(0, size.height * 0.7, size.width, size.height * 0.3),
-      ring,
+      Paint()..color = _C.accentSoft,
     );
-    final double t = progress;
+    final Offset center = Offset(size.width / 2, size.height / 2);
     for (int i = 0; i < 10; i++) {
       final double angle = i * (math.pi * 2 / 10);
-      final double radius = 54 + 12 * math.sin(t * math.pi * 2 + i);
-      final Offset p = Offset(size.width / 2, size.height / 2) +
-          Offset(math.cos(angle), math.sin(angle)) * radius;
+      final double radius = 52 + 10 * math.sin(t * math.pi * 2 + i);
+      final Offset p = center + Offset(math.cos(angle), math.sin(angle)) * radius;
       canvas.drawRect(
         Rect.fromCenter(
           center: p,
           width: i.isEven ? 4 : 3,
           height: i.isEven ? 4 : 3,
         ),
-        Paint()..color = _C.glow.withValues(alpha: 0.5),
+        Paint()..color = _C.accent.withValues(alpha: 0.18 + 0.3 * t),
       );
     }
+    canvas.drawCircle(center, 34, Paint()..color = _C.ink);
+    canvas.save();
+    canvas.translate(center.dx - 10, center.dy - 8);
+    canvas.scale(0.62);
+    const List<String> rows = <String>[
+      '   ####   ',
+      ' ##@@@@#  ',
+      '#@@@@@@@# ',
+      '#@#@@@@@##',
+      '#@@@@@@@# ',
+      ' ##@@@@#  ',
+      '   ####   ',
+    ];
+    const double cell = 10;
+    final Paint solid = Paint()..color = _C.surface;
+    for (int y = 0; y < rows.length; y++) {
+      for (int x = 0; x < rows[y].length; x++) {
+        if (rows[y][x] == ' ') continue;
+        canvas.drawRect(
+          Rect.fromLTWH(x * cell, y * cell, cell - 0.6, cell - 0.6),
+          solid,
+        );
+      }
+    }
+    canvas.restore();
   }
 
   @override
@@ -5563,7 +4462,7 @@ class _MetaRow extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: const <Widget>[
-        _MetaPill(text: '11 коротких шагов'),
+        _MetaPill(text: '11 шагов'),
         _MetaPill(text: 'Около 2 минут'),
         _MetaPill(text: 'Без реальной записи'),
         _MetaPill(text: 'Можно пропустить'),
@@ -5580,11 +4479,10 @@ class _MetaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: const BoxDecoration(
         color: _C.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-        border: Border.all(color: _C.line),
+        borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
       ),
       child: Text(
         text,
@@ -5600,16 +4498,14 @@ class _FinaleSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      decoration: const BoxDecoration(
         color: _C.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
-        border: Border.all(color: _C.line),
-        boxShadow: _S.soft,
+        borderRadius: BorderRadius.all(Radius.circular(_R.card)),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const <Widget>[
+        children: <Widget>[
           _SummaryRow(text: 'Лента событий — свайпом вверх'),
           _SummaryRow(text: 'Медиа события — свайпом влево'),
           _SummaryRow(text: 'Избранное — коротким тапом по рыбке'),
@@ -5628,134 +4524,188 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(
         children: <Widget>[
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: _C.accent,
-              borderRadius: BorderRadius.all(Radius.circular(1.5)),
-            ),
-          ),
-          const SizedBox(width: 8),
+          Container(width: 6, height: 6, color: _C.accent),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               text,
-              style: _T.sans(12.5, color: _C.ink2, height: 1.3, weight: FontWeight.w600),
+              style: _T.sans(
+                12.5,
+                color: _C.ink2,
+                height: 1.3,
+                weight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _TicketPin extends StatelessWidget {
-  const _TicketPin();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-        border: Border.all(color: _C.accentLine),
-        boxShadow: _S.soft,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 5,
-            height: 5,
-            color: _C.accent,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            'БИЛЕТ',
-            style: _T.mono(8.5, color: _C.accent, letterSpacing: 0.8),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniTicket extends StatelessWidget {
-  const _MiniTicket({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(painter: _MiniTicketPainter()),
     );
   }
 }
 
 class _MiniTicketPainter extends CustomPainter {
-  const _MiniTicketPainter();
+  const _MiniTicketPainter({required this.color});
+
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect body = Rect.fromLTWH(0, size.height * 0.12, size.width, size.height * 0.76);
+    final Rect body = Rect.fromLTWH(
+      0,
+      size.height * 0.14,
+      size.width,
+      size.height * 0.72,
+    );
     canvas.drawRRect(
       RRect.fromRectAndRadius(body, const Radius.circular(3)),
       Paint()
-        ..color = _C.accent
+        ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4,
+        ..strokeWidth = 1.3,
     );
     canvas.drawLine(
       Offset(size.width * 0.62, body.top),
       Offset(size.width * 0.62, body.bottom),
       Paint()
-        ..color = _C.accent
+        ..color = color
         ..strokeWidth = 1,
     );
-    final Paint dot = Paint()..color = _C.accent;
     for (int i = 0; i < 3; i++) {
       canvas.drawRect(
         Rect.fromLTWH(
           size.width * 0.14 + i * size.width * 0.13,
-          size.height * 0.4,
+          size.height * 0.42,
           size.width * 0.08,
           size.height * 0.08,
         ),
-        dot,
+        Paint()..color = color,
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MiniTicketPainter old) => old.color != color;
+}
+
+class _ContentBlock extends StatelessWidget {
+  const _ContentBlock({super.key, required this.event});
+
+  final _EventSpec event;
+
+  @override
+  Widget build(BuildContext context) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: _D.stage,
+      curve: _E.soft,
+      builder: (BuildContext context, double value, Widget? child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 10),
+            child: child,
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: const BoxDecoration(
+                color: _C.accentSoft,
+                borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
+              ),
+              child: Text(
+                event.category,
+                style: _T.mono(9, color: _C.accent, letterSpacing: 0.8),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              event.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: _T.sans(
+                textScale > 1.2 ? 21 : 24,
+                weight: FontWeight.w800,
+                height: 1.14,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${event.organizer} · ${event.place}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _T.sans(12.5, color: _C.muted, weight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              event.blurb,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: _T.sans(13.5, color: _C.ink2, height: 1.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketSheet extends StatelessWidget {
+  const _TicketSheet({required this.event, required this.onClose});
+
+  final _EventSpec event;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      eyebrow: 'УЧЕБНЫЙ БИЛЕТ',
+      title: 'Твой билет',
+      onClose: onClose,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _TicketCard(event: event),
+          const SizedBox(height: 12),
+          const _DemoNotice(
+            text: 'Учебный билет — не для входа. Квадратный узор не является QR-кодом.',
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TicketCard extends StatelessWidget {
-  const _TicketCard({required this.event, required this.compact});
+  const _TicketCard({required this.event});
 
   final _EventSpec event;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: _C.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(22)),
-        border: Border.all(color: _C.line),
-        boxShadow: _S.soft,
+        borderRadius: BorderRadius.all(Radius.circular(22)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: Color(0x0F0D1117), blurRadius: 18, offset: Offset(0, 6)),
+        ],
       ),
       child: Column(
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -5775,11 +4725,7 @@ class _TicketCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   event.title,
-                  style: _T.sans(
-                    compact ? 16 : 18,
-                    weight: FontWeight.w800,
-                    height: 1.16,
-                  ),
+                  style: _T.sans(18, weight: FontWeight.w800, height: 1.16),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -5791,18 +4737,18 @@ class _TicketCard extends StatelessWidget {
           ),
           const _Perforation(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       _TicketField(label: 'УЧАСТНИК', value: 'Аня Соколова'),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       _TicketField(label: 'ФОРМАТ', value: 'Учебный режим'),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       _TicketField(label: 'ВХОД', value: 'Не требуется'),
                     ],
                   ),
@@ -5814,12 +4760,11 @@ class _TicketCard extends StatelessWidget {
                       width: 62,
                       height: 62,
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: _C.paper,
-                        borderRadius: const BorderRadius.all(Radius.circular(10)),
-                        border: Border.all(color: _C.line),
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
                       ),
-                      child: CustomPaint(painter: const _PixelQrPainter()),
+                      child: CustomPaint(painter: _PixelQrPainter()),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -5833,7 +4778,7 @@ class _TicketCard extends StatelessWidget {
           ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 9),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: const BoxDecoration(
               color: _C.paper,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
@@ -5841,12 +4786,7 @@ class _TicketCard extends StatelessWidget {
             child: Center(
               child: Text(
                 'Учебный билет — не для входа',
-                style: _T.sans(
-                  11,
-                  color: _C.ink2,
-                  weight: FontWeight.w700,
-                  height: 1.2,
-                ),
+                style: _T.sans(11, color: _C.ink2, weight: FontWeight.w700),
               ),
             ),
           ),
@@ -5869,10 +4809,7 @@ class _TicketField extends StatelessWidget {
       children: <Widget>[
         Text(label, style: _T.mono(8.5, color: _C.muted, letterSpacing: 0.9)),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: _T.sans(12, weight: FontWeight.w700, height: 1.2),
-        ),
+        Text(value, style: _T.sans(12, weight: FontWeight.w700, height: 1.2)),
       ],
     );
   }
@@ -5899,9 +4836,9 @@ class _Perforation extends StatelessWidget {
                     for (int i = 0; i < count; i++)
                       Expanded(
                         child: Container(
-                          height: 1.6,
+                          height: 1.4,
                           margin: const EdgeInsets.only(right: 4),
-                          color: _C.lineStrong,
+                          color: _C.hairline,
                         ),
                       ),
                   ],
@@ -5913,10 +4850,9 @@ class _Perforation extends StatelessWidget {
                 child: Container(
                   width: 18,
                   height: 18,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: _C.paper,
                     shape: BoxShape.circle,
-                    border: Border.all(color: _C.line),
                   ),
                 ),
               ),
@@ -5926,10 +4862,9 @@ class _Perforation extends StatelessWidget {
                 child: Container(
                   width: 18,
                   height: 18,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: _C.paper,
                     shape: BoxShape.circle,
-                    border: Border.all(color: _C.line),
                   ),
                 ),
               ),
@@ -5976,220 +4911,11 @@ class _PixelQrPainter extends CustomPainter {
     for (int y = 0; y < side; y++) {
       for (int x = 0; x < side; x++) {
         if (_rows[y][x] != '1') continue;
-        canvas.drawRect(
-          Rect.fromLTWH(x * cell, y * cell, cell, cell),
-          on,
-        );
+        canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), on);
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _HoldTrack extends StatelessWidget {
-  const _HoldTrack({
-    required this.hold,
-    required this.dragX,
-    required this.travel,
-    required this.threshold,
-    required this.anchor,
-    required this.past,
-    required this.ready,
-  });
-
-  final Animation<double> hold;
-  final ValueListenable<double> dragX;
-  final double travel;
-  final double threshold;
-  final Offset anchor;
-  final bool past;
-  final bool ready;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[hold, dragX]),
-      builder: (BuildContext context, Widget? child) {
-        final double holdValue = hold.value.clamp(0.0, 1.0);
-        final double dx = dragX.value;
-        final double trackRight = anchor.dx + 10;
-        final double trackLeft = trackRight - travel * 1.12;
-        final double top = anchor.dy - 34;
-        final String label = !ready
-            ? 'Удерживай'
-            : past
-                ? 'Отпусти'
-                : 'Веди влево';
-        return Stack(
-          children: <Widget>[
-            Positioned(
-              left: trackLeft,
-              top: top,
-              width: trackRight - trackLeft,
-              height: 68,
-              child: CustomPaint(
-                painter: _HoldTrackPainter(
-                  progress: holdValue,
-                  drag: dx,
-                  travel: travel,
-                  threshold: threshold,
-                  ready: ready,
-                  past: past,
-                ),
-              ),
-            ),
-            Positioned(
-              left: math.max(6, trackLeft - 2),
-              top: top + 46,
-              width: math.max(96, trackRight - trackLeft),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: past ? _C.accent : _C.surface,
-                    borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-                    border: Border.all(color: past ? _C.accent : _C.line),
-                  ),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _T.sans(
-                      10,
-                      weight: FontWeight.w800,
-                      color: past ? _C.surface : _C.ink2,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _HoldTrackPainter extends CustomPainter {
-  const _HoldTrackPainter({
-    required this.progress,
-    required this.drag,
-    required this.travel,
-    required this.threshold,
-    required this.ready,
-    required this.past,
-  });
-
-  final double progress;
-  final double drag;
-  final double travel;
-  final double threshold;
-  final bool ready;
-  final bool past;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double midY = 16;
-    final Rect track = Rect.fromLTWH(0, midY - 7, size.width, 14);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(track, const Radius.circular(4)),
-      Paint()..color = _C.ink.withValues(alpha: 0.07),
-    );
-    final double thresholdX = track.width - threshold * (track.width / (travel * 1.12));
-    canvas.drawRect(
-      Rect.fromLTWH(thresholdX - 1, track.top - 5, 2, 24),
-      Paint()..color = _C.ink.withValues(alpha: 0.35),
-    );
-    final double filled = (-drag).clamp(0.0, travel) * (track.width / (travel * 1.12));
-    if (filled > 0) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(track.right - filled, track.top, filled, 14),
-          const Radius.circular(4),
-        ),
-        Paint()..color = (past ? _C.accent : _C.glow).withValues(alpha: 0.5),
-      );
-    }
-    if (!ready) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          track.left,
-          midY - 3,
-          track.width * progress,
-          6,
-        ),
-        Paint()..color = _C.accent.withValues(alpha: 0.55),
-      );
-    }
-    final double knobX = track.right + drag * 0.9;
-    canvas.drawCircle(
-      Offset(knobX, midY),
-      9,
-      Paint()..color = past ? _C.accent : _C.ink,
-    );
-    canvas.drawCircle(
-      Offset(knobX, midY),
-      4,
-      Paint()..color = _C.surface,
-    );
-    final Paint dot = Paint()..color = _C.surface.withValues(alpha: 0.7);
-    for (int i = 0; i < 4; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(knobX - 12 - i * 5, midY - 1.5, 2.5, 3),
-        dot,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HoldTrackPainter old) =>
-      old.progress != progress ||
-      old.drag != drag ||
-      old.ready != ready ||
-      old.past != past ||
-      old.travel != travel ||
-      old.threshold != threshold;
-}
-
-class _FinishCta extends StatelessWidget {
-  const _FinishCta({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.all(Radius.circular(18)),
-        boxShadow: _S.floating,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 2, 6, 8),
-              child: Text(
-                'Настройки найдены. Остался последний шаг.',
-                style: _T.sans(
-                  11.5,
-                  color: _C.ink2,
-                  height: 1.3,
-                  weight: FontWeight.w600,
-                ),
-              ),
-            ),
-            _PrimaryButton(label: 'Завершить обучение', onTap: onTap),
-          ],
-        ),
-      ),
-    );
-  }
 }
