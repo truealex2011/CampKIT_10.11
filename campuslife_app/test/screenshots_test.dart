@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_repository.dart';
 
@@ -15,6 +16,8 @@ final _boundaryKey = GlobalKey();
 
 void main() {
   const dir = 'build/test_shots';
+
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   setUpAll(() {
     Directory(dir).createSync(recursive: true);

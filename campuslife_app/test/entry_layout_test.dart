@@ -5,6 +5,7 @@ import 'package:campuslife_app/presentation/entry/entry_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_repository.dart';
 
@@ -23,7 +24,6 @@ Future<void> boot(WidgetTester tester, Size size) async {
   await frames(tester);
 }
 
-// Ocean animation never settles, so advance a bounded number of frames.
 Future<void> frames(WidgetTester tester) async {
   for (var i = 0; i < 12; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -43,6 +43,8 @@ void noCredit() {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   for (final size in [
     const Size(390, 844),
     const Size(390, 1000),
@@ -57,7 +59,6 @@ void main() {
       final top = tester.getTopLeft(find.byType(Eyebrow)).dy;
       final bottom = tester.getBottomLeft(find.byType(AuthCard)).dy;
       if (bottom - top < viewport.height - 34) {
-        // Scroll padding is 8 above and 26 below.
         final expected = viewport.center.dy - 9;
         expect(((top + bottom) / 2 - expected).abs(), lessThan(2));
       }
@@ -70,7 +71,6 @@ void main() {
       await tester.tap(find.text('Создать аккаунт'));
       await frames(tester);
       expect(find.text('Имя и фамилия'), findsOneWidget);
-      // Keyboard must not produce negative minimum constraints or overflow.
       tester.view.viewInsets = FakeViewPadding(bottom: size.height * .65);
       await frames(tester);
       await tester.ensureVisible(find.text('Создать аккаунт'));

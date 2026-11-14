@@ -11,6 +11,7 @@ import '../../domain/entities.dart';
 import '../entry/entry_widgets.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
+import '../shared/pixel.dart';
 import '../shared/video_source.dart';
 import 'organizer_common.dart';
 
@@ -183,6 +184,7 @@ class _EventWizardState extends ConsumerState<EventWizard> {
                               size: 21,
                               weight: 700,
                               height: 1.12,
+                              color: context.colors.ink,
                             ),
                           ),
                         ],
@@ -195,8 +197,31 @@ class _EventWizardState extends ConsumerState<EventWizard> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                WizardSteps(step: _step, total: _total),
-                Expanded(child: SingleChildScrollView(child: _content())),
+                PixelProgress(value: (_step + 1) / _total, cells: _total * 4),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : AppMotion.slow,
+                    switchInCurve: AppMotion.ease,
+                    switchOutCurve: AppMotion.ease,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.06, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      key: ValueKey(_step),
+                      child: _content(),
+                    ),
+                  ),
+                ),
                 _footer(),
               ],
             ),

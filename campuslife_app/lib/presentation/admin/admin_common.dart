@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
+import '../shared/pixel.dart';
 
 abstract final class AdminUi {
   static const tabs = ['Модерация', 'Ключи', 'Управление', 'Жалобы'];
@@ -256,12 +257,12 @@ class AdminKeyValue extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
-    this.color = Palette.ink2,
+    this.color,
   });
 
   final String label;
   final String value;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -276,14 +277,14 @@ class AdminKeyValue extends StatelessWidget {
             style: Fonts.monoStyle(
               size: 9.5,
               letterSpacing: 0.1 * 9.5,
-              color: Palette.muted,
+              color: context.colors.muted,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: Fonts.sansStyle(size: 12.5, height: 1.35, color: color),
+            style: Fonts.sansStyle(size: 12.5, height: 1.35, color: color ?? context.colors.ink2),
           ),
         ),
       ],
@@ -298,21 +299,17 @@ class AdminLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AdminCard(
-    child: Row(
-      children: [
-        SizedBox(
-          width: 16,
-          height: 16,
-          child: FishLoader(size: 16, color: Palette.accent),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: Fonts.sansStyle(size: 12.5, color: Palette.muted),
-          ),
-        ),
-      ],
+    child: Semantics(
+      liveRegion: true,
+      label: text,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(text, style: Fonts.monoStyle(size: 11, color: context.colors.muted)),
+          const SizedBox(height: 16),
+          const RepaintBoundary(child: PixelSkeleton()),
+        ],
+      ),
     ),
   );
 }
@@ -330,14 +327,14 @@ class AdminFailure extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 16, color: Palette.rose),
+            Icon(Icons.cloud_off_rounded, size: 16, color: context.colors.rose),
             const SizedBox(width: 8),
             Text(
               'Раздел не открылся',
               style: Fonts.sansStyle(
                 size: 13.5,
                 weight: 600,
-                color: Palette.ink,
+                color: context.colors.ink,
               ),
             ),
           ],
@@ -345,7 +342,7 @@ class AdminFailure extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           message,
-          style: Fonts.sansStyle(size: 12.5, height: 1.45, color: Palette.ink2),
+          style: Fonts.sansStyle(size: 12.5, height: 1.45, color: context.colors.ink2),
         ),
         if (onRetry != null) ...[
           const SizedBox(height: 12),
@@ -373,16 +370,16 @@ class AdminEmpty extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 22, color: Palette.icon),
+        FishSchool(size: 52, color: context.colors.icon),
         const SizedBox(height: 10),
         Text(
           text,
-          style: Fonts.sansStyle(size: 14, weight: 600, color: Palette.ink),
+          style: Fonts.sansStyle(size: 14, weight: 600, color: context.colors.ink),
         ),
         const SizedBox(height: 5),
         Text(
           hint,
-          style: Fonts.sansStyle(size: 12, height: 1.45, color: Palette.muted),
+          style: Fonts.sansStyle(size: 12, height: 1.45, color: context.colors.muted),
         ),
       ],
     ),
@@ -403,7 +400,7 @@ class AdminHint extends StatelessWidget {
         MicroLabel(title),
         Text(
           text,
-          style: Fonts.sansStyle(size: 12, height: 1.5, color: Palette.ink2),
+          style: Fonts.sansStyle(size: 12, height: 1.5, color: context.colors.ink2),
         ),
       ],
     ),
@@ -426,16 +423,10 @@ Future<bool> adminConfirm(
         constraints: const BoxConstraints(maxWidth: 380),
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         decoration: BoxDecoration(
-          color: Palette.paper,
+          color: context.colors.paper,
           borderRadius: BorderRadius.circular(Scale.cardRadiusNarrow),
-          border: Border.all(color: Palette.cardLine),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x4D0D1117),
-              blurRadius: 40,
-              offset: Offset(0, 18),
-            ),
-          ],
+          border: Border.all(color: context.colors.cardLine),
+          boxShadow: AppShadows.card,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -446,7 +437,7 @@ Future<bool> adminConfirm(
               style: Fonts.sansStyle(
                 size: 15.5,
                 weight: 700,
-                color: Palette.ink,
+                color: context.colors.ink,
               ),
             ),
             const SizedBox(height: 8),
@@ -455,7 +446,7 @@ Future<bool> adminConfirm(
               style: Fonts.sansStyle(
                 size: 12.5,
                 height: 1.45,
-                color: Palette.ink2,
+                color: context.colors.ink2,
               ),
             ),
             const SizedBox(height: 14),

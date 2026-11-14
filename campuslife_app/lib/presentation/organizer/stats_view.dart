@@ -88,7 +88,7 @@ class _ChartFrame extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 6),
-        SizedBox(height: 180, child: child),
+        RepaintBoundary(child: SizedBox(height: 180, child: child)),
         const SizedBox(height: 6),
       ],
     ),
@@ -102,7 +102,7 @@ class _NoData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Text(text, style: Fonts.monoStyle(size: 10.5, color: Palette.muted)),
+    child: Text(text, style: Fonts.monoStyle(size: 10.5, color: context.colors.muted)),
   );
 }
 
@@ -116,18 +116,15 @@ class _LegendDot extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: color)),
       const SizedBox(width: 6),
-      Text(label, style: Fonts.monoStyle(size: 9.5, color: Palette.muted)),
+      Text(label, style: Fonts.monoStyle(size: 9.5, color: context.colors.muted)),
     ],
   );
 }
 
-TextStyle get _axisStyle => Fonts.monoStyle(size: 8.5, color: Palette.muted);
+TextStyle _axisStyle(BuildContext context) =>
+    Fonts.monoStyle(size: 8.5, color: context.colors.muted);
 
 class _DailyChart extends ConsumerWidget {
   const _DailyChart({required this.eventId});
@@ -139,13 +136,13 @@ class _DailyChart extends ConsumerWidget {
     final daily = ref.watch(eventDailyProvider(eventId));
     return switch (daily) {
       AsyncData(:final value) =>
-        value.isEmpty ? const _NoData() : _lineChart(value),
+        value.isEmpty ? const _NoData() : _lineChart(context, value),
       AsyncError() => const _NoData(text: 'Данные недоступны'),
       _ => const Center(child: FishLoader(size: 40)),
     };
   }
 
-  Widget _lineChart(List<DayCount> days) {
+  Widget _lineChart(BuildContext context, List<DayCount> days) {
     var maxY = 1.0;
     for (final d in days) {
       if (d.registrations > maxY) maxY = d.registrations.toDouble();
@@ -166,7 +163,7 @@ class _DailyChart extends ConsumerWidget {
                 drawVerticalLine: false,
                 horizontalInterval: yInterval,
                 getDrawingHorizontalLine: (value) =>
-                    const FlLine(color: Palette.line2, strokeWidth: 1),
+                    FlLine(color: context.colors.line2, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
@@ -177,8 +174,9 @@ class _DailyChart extends ConsumerWidget {
                     showTitles: true,
                     interval: yInterval,
                     reservedSize: 28,
-                    getTitlesWidget: (value, meta) =>
-                        Text(value.toInt().toString(), style: _axisStyle),
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt().toString(), style: _axisStyle(context),
+                    ),
                   ),
                 ),
                 bottomTitles: AxisTitles(
@@ -200,7 +198,7 @@ class _DailyChart extends ConsumerWidget {
                           width: 44,
                           child: Text(
                             RuFmt.dayShort(days[index].date),
-                            style: _axisStyle,
+                            style: _axisStyle(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
@@ -218,7 +216,7 @@ class _DailyChart extends ConsumerWidget {
                     for (var i = 0; i < days.length; i++)
                       FlSpot(i.toDouble(), days[i].registrations.toDouble()),
                   ],
-                  color: Palette.accent,
+                  color: context.colors.accent,
                   barWidth: 2.4,
                   isCurved: true,
                   dotData: const FlDotData(show: true),
@@ -228,9 +226,9 @@ class _DailyChart extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 4),
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
-          child: _LegendDot(color: Palette.accent, label: 'заявки по дням'),
+          child: _LegendDot(color: context.colors.accent, label: 'заявки по дням'),
         ),
       ],
     );
@@ -247,13 +245,13 @@ class _EventsCompareChart extends ConsumerWidget {
     final stats = ref.watch(orgStatsProvider(orgId));
     return switch (stats) {
       AsyncData(:final value) =>
-        value.isEmpty ? const _NoData() : _barChart(value, ref),
+        value.isEmpty ? const _NoData() : _barChart(context, value, ref),
       AsyncError() => const _NoData(text: 'Данные недоступны'),
       _ => const Center(child: FishLoader(size: 40)),
     };
   }
 
-  Widget _barChart(List<EventStats> stats, WidgetRef ref) {
+  Widget _barChart(BuildContext context, List<EventStats> stats, WidgetRef ref) {
     final shown = stats.take(8).toList(growable: false);
     var maxY = 1.0;
     for (final s in shown) {
@@ -275,7 +273,7 @@ class _EventsCompareChart extends ConsumerWidget {
                 drawVerticalLine: false,
                 horizontalInterval: yInterval,
                 getDrawingHorizontalLine: (value) =>
-                    const FlLine(color: Palette.line2, strokeWidth: 1),
+                    FlLine(color: context.colors.line2, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barTouchData: const BarTouchData(enabled: false),
@@ -287,8 +285,9 @@ class _EventsCompareChart extends ConsumerWidget {
                     showTitles: true,
                     interval: yInterval,
                     reservedSize: 28,
-                    getTitlesWidget: (value, meta) =>
-                        Text(value.toInt().toString(), style: _axisStyle),
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt().toString(), style: _axisStyle(context),
+                    ),
                   ),
                 ),
                 bottomTitles: AxisTitles(
@@ -309,7 +308,7 @@ class _EventsCompareChart extends ConsumerWidget {
                           width: 40,
                           child: Text(
                             title,
-                            style: _axisStyle,
+                            style: _axisStyle(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
@@ -327,8 +326,9 @@ class _EventsCompareChart extends ConsumerWidget {
                     barRods: [
                       BarChartRodData(
                         toY: shown[i].registrations.toDouble(),
-                        color: Palette.gold,
+                        color: context.colors.accent,
                         width: rodWidth,
+                        borderRadius: BorderRadius.zero,
                       ),
                     ],
                   ),
@@ -337,10 +337,10 @@ class _EventsCompareChart extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 4),
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
           child: _LegendDot(
-            color: Palette.gold,
+            color: context.colors.accent,
             label: 'записалось на каждое событие',
           ),
         ),
@@ -373,13 +373,13 @@ class _AttendanceShareChart extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(orgStatsProvider(orgId));
     return switch (stats) {
-      AsyncData(:final value) => _share(value),
+      AsyncData(:final value) => _share(context, value),
       AsyncError() => const _NoData(text: 'Данные недоступны'),
       _ => const Center(child: FishLoader(size: 40)),
     };
   }
 
-  Widget _share(List<EventStats> stats) {
+  Widget _share(BuildContext context, List<EventStats> stats) {
     var registrations = 0;
     var checkedIn = 0;
     for (final s in stats) {
@@ -401,27 +401,27 @@ class _AttendanceShareChart extends ConsumerWidget {
               sections: [
                 PieChartSectionData(
                   value: came.toDouble(),
-                  color: Palette.mint,
+                  color: context.colors.accent,
                   radius: 52,
                   title: '$came',
                   showTitle: true,
                   titleStyle: Fonts.sansStyle(
                     size: 13,
                     weight: 700,
-                    color: Colors.white,
+                    color: context.colors.paper,
                   ),
                 ),
                 if (missed > 0)
                   PieChartSectionData(
                     value: missed.toDouble(),
-                    color: Palette.rose,
+                    color: context.colors.lineStrong,
                     radius: 52,
                     title: '$missed',
                     showTitle: true,
                     titleStyle: Fonts.sansStyle(
                       size: 13,
                       weight: 700,
-                      color: Colors.white,
+                      color: context.colors.ink,
                     ),
                   ),
               ],
@@ -432,10 +432,10 @@ class _AttendanceShareChart extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _LegendDot(color: Palette.mint, label: 'пришло · $came'),
+            _LegendDot(color: context.colors.accent, label: 'пришло · $came'),
             if (missed > 0) ...[
               const SizedBox(width: 14),
-              _LegendDot(color: Palette.rose, label: 'не пришло · $missed'),
+              _LegendDot(color: context.colors.lineStrong, label: 'не пришло · $missed'),
             ],
           ],
         ),

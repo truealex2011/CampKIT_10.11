@@ -76,11 +76,16 @@ class World implements OceanScene {
   final List<SharkSpec> _sharkSpecs;
   final int? _fishCount;
   final math.Random _rng;
+  final double timeScale;
 
-  World({List<SharkSpec>? sharkSpecs, int? fishCount, math.Random? random})
-    : _sharkSpecs = sharkSpecs ?? _defaultSharks,
-      _fishCount = fishCount,
-      _rng = random ?? math.Random();
+  World({
+    List<SharkSpec>? sharkSpecs,
+    int? fishCount,
+    math.Random? random,
+    this.timeScale = 1.0,
+  }) : _sharkSpecs = sharkSpecs ?? _defaultSharks,
+       _fishCount = fishCount,
+       _rng = random ?? math.Random();
 
   @override
   void resize(double width, double height, double cellW, double cellH) {
@@ -243,7 +248,8 @@ class World implements OceanScene {
   }
 
   @override
-  void step(double dt) {
+  void step(double rawDt) {
+    final dt = rawDt * timeScale;
     time += dt;
     _rebuildHash();
     _stepFish(dt);

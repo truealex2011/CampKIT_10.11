@@ -441,6 +441,34 @@ Future<void> seedIfEmpty(AppDatabase db) async {
             status: event.status.name,
           ),
         );
+    for (var photo = 1; photo <= 3; photo++) {
+      await db
+          .into(db.eventMedia)
+          .insert(
+            EventMediaCompanion.insert(
+              id: 'med_${event.id}_p$photo',
+              eventId: event.id,
+              kind: MediaKind.photo.name,
+              path: 'assets/media/${event.id}_p$photo.jpg',
+              position: Value(photo - 1),
+            ),
+          );
+    }
+    if (const {'ev_1', 'ev_2', 'ev_3', 'ev_5', 'ev_6'}.contains(event.id)) {
+      await db
+          .into(db.eventMedia)
+          .insert(
+            EventMediaCompanion.insert(
+              id: 'med_${event.id}_v',
+              eventId: event.id,
+              kind: MediaKind.video.name,
+              path: 'assets/media/${event.id}_v.mp4',
+              previewPath: Value('assets/media/${event.id}_p1.jpg'),
+              position: const Value(3),
+              durationMs: const Value(4000),
+            ),
+          );
+    }
   }
 
   await db

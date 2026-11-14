@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../app/theme.dart';
 import 'renderer.dart';
 import 'types.dart';
 
@@ -154,7 +155,6 @@ class _OceanViewState extends State<OceanView>
               local.dy >= 0 &&
               local.dx <= _size.width &&
               local.dy <= _size.height;
-          // Touch creates a splash, not a persistent mouse-avoidance point.
           if (e.kind == PointerDeviceKind.touch) {
             widget.scene.pointer.active = false;
           }
@@ -164,13 +164,16 @@ class _OceanViewState extends State<OceanView>
           builder: (context, constraints) {
             final size = Size(constraints.maxWidth, constraints.maxHeight);
             _maybeResize(size, dpr);
-            return CustomPaint(
-              size: size,
-              painter: _OceanPainter(
-                _renderer,
-                widget.scene,
-                () => _frameDt,
-                repaint: _repaint,
+            return RepaintBoundary(
+              child: CustomPaint(
+                size: size,
+                painter: _OceanPainter(
+                  _renderer,
+                  widget.scene,
+                  () => _frameDt,
+                  context.colors,
+                  repaint: _repaint,
+                ),
               ),
             );
           },
@@ -181,18 +184,26 @@ class _OceanViewState extends State<OceanView>
 }
 
 class _OceanPainter extends CustomPainter {
-  _OceanPainter(this.renderer, this.scene, this.frameDt, {super.repaint});
+  _OceanPainter(
+    this.renderer,
+    this.scene,
+    this.frameDt,
+    this.colors, {
+    super.repaint,
+  });
 
   final OceanRenderer renderer;
   final OceanScene scene;
   final double Function() frameDt;
+  final AppColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.clipRect(Offset.zero & size);
-    renderer.render(canvas, scene, frameDt());
+    renderer.render(canvas, scene, frameDt(), colors);
   }
 
   @override
-  bool shouldRepaint(covariant _OceanPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _OceanPainter oldDelegate) =>
+      oldDelegate.colors != colors;
 }

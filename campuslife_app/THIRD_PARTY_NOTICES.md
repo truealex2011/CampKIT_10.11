@@ -1,5 +1,15 @@
 # Сторонние материалы
 
+Демонстрационные изображения и зацикленные MP4 в `assets/media/` созданы
+процедурно специально для CampusLife скриптом `tool/generate_demo_media.py`.
+Сторонние фотографии, видео и их источники не используются: внешние CDN
+Unsplash и Pexels были недоступны из окружения сборки. На сгенерированные
+материалы не распространяются ограничения сторонних фотостоков.
+
+Основной шрифт: Manrope (Mikhail Sharanda, Mirko Velimirovic), SIL Open Font
+License 1.1. Локальные TTF собраны из @fontsource-variable/manrope 5.3.0,
+лицензия сохранена в `assets/fonts/Manrope-OFL.txt`.
+
 Пиксельные символы океана: Cascadia Mono (Microsoft), SIL Open Font License 1.1.
 Шрифт включён локально в `assets/fonts/CascadiaMono.ttf`, лицензия —
 `assets/fonts/OFL.txt`. Он используется только в отрисовке океана.

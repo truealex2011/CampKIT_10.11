@@ -11,7 +11,11 @@ import '../feed/event_sheet.dart';
 import '../feed/media_pool.dart' show DateFmt, FeedVisuals;
 import '../shared/app_routes.dart';
 import '../shared/fish.dart';
+import '../shared/ocean/ocean_providers.dart';
+import '../shared/glass_sheet.dart';
 import '../shared/kit.dart';
+import '../shared/pixel.dart';
+import '../shared/theme_controls.dart';
 import 'ticket_card.dart';
 
 final reminderOfProvider = FutureProvider.family<Reminder?, String>((
@@ -37,81 +41,137 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   static const List<String> _tabs = ['Билеты', 'Избранное', 'Настройки'];
 
   int _tab = 0;
+  final _themeBoundary = GlobalKey();
+  final _themeToggle = GlobalKey();
+  final _themeTabs = GlobalKey();
+  Offset? _themeOrigin;
+  bool _changingTheme = false;
+
+  Future<void> _changeTheme(
+    ThemeMode mode,
+    GlobalKey source, {
+    int? segment,
+  }) async {
+    final pointerOrigin = _themeOrigin;
+    _themeOrigin = null;
+    if (_changingTheme || mode == ref.read(themeModeProvider)) return;
+    _changingTheme = true;
+    final box = source.currentContext!.findRenderObject() as RenderBox;
+    final origin = pointerOrigin ??
+        box.localToGlobal(
+          Offset(
+            segment == null
+                ? box.size.width / 2
+                : 4 + (box.size.width - 8) * (segment + 0.5) / 3,
+            box.size.height / 2,
+          ),
+        );
+    try {
+      await revealTheme(
+        context,
+        _themeBoundary,
+        mode,
+        origin,
+        () => ref.read(themeModeProvider.notifier).set(mode),
+      );
+    } finally {
+      _changingTheme = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionProvider);
     final width = MediaQuery.sizeOf(context).width;
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: Scale.gutter(width)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return RepaintBoundary(
+      key: _themeBoundary,
+      child: Scaffold(
+        body: SafeArea(
+          child: Stack(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(
-                      Icons.arrow_back_rounded,
-                      color: Palette.icon,
+              const Positioned.fill(child: OceanBackdrop(veil: 1.35)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: Scale.gutter(width)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                Row(
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        color: context.colors.icon,
+                      ),
+                    ),
+                    PixelAvatar(name: user?.name ?? 'Гость'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name.isEmpty == false ? user!.name : 'Гость',
+                            style: Fonts.sansStyle(
+                              size: 17,
+                              weight: 700,
+                              height: 1.15,
+                            ),
+                          ),
+                          Text(
+                            user?.email ?? 'смотришь без аккаунта',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Fonts.monoStyle(
+                              size: 10,
+                              color: context.colors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (user != null)
+                      RoleChip(
+                        label: user.role.label,
+                        dot: context.colors.roleDot(user.role),
+                      )
+                    else
+                      TextLink(
+                        'войти',
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushReplacementNamed(AppRoutes.entry),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SegTabs(
+                  items: _tabs,
+                  index: _tab,
+                  onSelect: (i) => setState(() => _tab = i),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero : AppMotion.normal,
+                    switchInCurve: AppMotion.ease,
+                    switchOutCurve: AppMotion.ease,
+                    child: KeyedSubtree(
+                      key: ValueKey(_tab),
+                      child: switch (_tab) {
+                        0 => _tickets(),
+                        1 => _favorites(),
+                        _ => _settings(user),
+                      },
                     ),
                   ),
-                  _Avatar(name: user?.name ?? 'Гость'),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name.isEmpty == false ? user!.name : 'Гость',
-                          style: Fonts.sansStyle(
-                            size: 17,
-                            weight: 700,
-                            height: 1.15,
-                          ),
-                        ),
-                        Text(
-                          user?.email ?? 'смотришь без аккаунта',
-                          style: Fonts.monoStyle(
-                            size: 10,
-                            color: Palette.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (user != null)
-                    RoleChip(
-                      label: user.role.label,
-                      dot: Palette.roleDot(user.role),
-                    )
-                  else
-                    TextLink(
-                      'войти',
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pushReplacementNamed(AppRoutes.entry),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SegTabs(
-                items: _tabs,
-                index: _tab,
-                onSelect: (i) => setState(() => _tab = i),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: switch (_tab) {
-                  0 => _tickets(),
-                  1 => _favorites(),
-                  _ => _settings(user),
-                },
-              ),
-              const SizedBox(height: 10),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+            ),
             ],
           ),
         ),
@@ -175,39 +235,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 12),
       children: [
-        GlassCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 4),
-              MicroLabel('тёмная тема'),
-              GhostButton(
-                label: switch (mode) {
-                  ThemeMode.dark => 'выключена — включим',
-                  ThemeMode.system => 'следим за системой',
-                  _ => 'включена — выключим',
-                },
-                expand: true,
-                onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
-              ),
-              const SizedBox(height: 10),
-              SegTabs(
-                items: const ['Светлая', 'Тёмная', 'Система'],
-                index: switch (mode) {
-                  ThemeMode.light => 0,
-                  ThemeMode.dark => 1,
-                  _ => 2,
-                },
-                onSelect: (i) =>
-                    ref.read(themeModeProvider.notifier).set(switch (i) {
+        Listener(
+          onPointerDown: (event) => _themeOrigin = event.position,
+          child: GlassCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 4),
+                MicroLabel('тёмная тема'),
+                GhostButton(
+                  key: _themeToggle,
+                  label: switch (mode) {
+                    ThemeMode.dark => 'включена — выключим',
+                    ThemeMode.system => 'следим за системой',
+                    _ => 'выключена — включим',
+                  },
+                  expand: true,
+                  onPressed: () => _changeTheme(
+                    switch (mode) {
+                      ThemeMode.dark => ThemeMode.light,
+                      ThemeMode.light => ThemeMode.dark,
+                      ThemeMode.system => ThemeMode.light,
+                    },
+                    _themeToggle,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SegTabs(
+                  key: _themeTabs,
+                  items: const ['Светлая', 'Тёмная', 'Система'],
+                  index: switch (mode) {
+                    ThemeMode.light => 0,
+                    ThemeMode.dark => 1,
+                    _ => 2,
+                  },
+                  onSelect: (i) => _changeTheme(
+                    switch (i) {
                       0 => ThemeMode.light,
                       1 => ThemeMode.dark,
                       _ => ThemeMode.system,
-                    }),
-              ),
-              const SizedBox(height: 6),
-            ],
+                    },
+                    _themeTabs,
+                    segment: i,
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
           ),
         ),
         const DividerLabel('Аккаунт'),
@@ -291,44 +366,6 @@ class _EmptyPlate extends StatelessWidget {
   );
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name});
-
-  final String name;
-
-  static String _initials(String raw) {
-    final parts = raw.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    if (parts.isEmpty) return '?';
-    final letters = [for (final p in parts.take(2)) p[0].toUpperCase()];
-    return letters.join();
-  }
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 52,
-    height: 52,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Palette.accent, Palette.ink],
-      ),
-      border: Border.all(color: Palette.lineStrong),
-    ),
-    child: Text(
-      _initials(name),
-      style: Fonts.sansStyle(
-        size: 17,
-        weight: 700,
-        color: Colors.white,
-        letterSpacing: 0,
-      ),
-    ),
-  );
-}
-
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.label,
@@ -345,19 +382,19 @@ class _InfoRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(
       children: [
-        Icon(icon, size: 15, color: Palette.muted),
+        Icon(icon, size: 15, color: context.colors.muted),
         const SizedBox(width: 9),
         SizedBox(
           width: 66,
           child: Text(
             label,
-            style: Fonts.monoStyle(size: 9.5, color: Palette.muted),
+            style: Fonts.monoStyle(size: 9.5, color: context.colors.muted),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: Fonts.sansStyle(size: 13, color: Palette.ink2),
+            style: Fonts.sansStyle(size: 13, color: context.colors.ink2),
           ),
         ),
       ],
@@ -399,7 +436,7 @@ class _FavoriteTile extends ConsumerWidget {
           Text(
             '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)}'
             ' · ${event.place.isEmpty ? 'место не указано' : event.place}',
-            style: Fonts.sansStyle(size: 12, color: Palette.muted),
+            style: Fonts.sansStyle(size: 12, color: context.colors.muted),
           ),
           const SizedBox(height: 10),
           Row(
@@ -409,18 +446,24 @@ class _FavoriteTile extends ConsumerWidget {
                     ? Icons.notifications_active_rounded
                     : Icons.notifications_none_rounded,
                 size: 16,
-                color: Palette.muted,
+                color: context.colors.muted,
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(switch (reminder) {
-                  AsyncData(:final value) =>
-                    value == null
-                        ? 'напоминания нет'
-                        : 'напомню ${value.offset.label}, в ${DateFmt.time(value.fireAt)}',
-                  AsyncError() => 'напоминание не проверить',
-                  _ => 'считаем…',
-                }, style: Fonts.sansStyle(size: 11.5, color: Palette.ink2)),
+                child: Text(
+                  switch (reminder) {
+                    AsyncData(:final value) =>
+                      value == null
+                          ? 'напоминания нет'
+                          : 'напомню ${value.offset.label}, в ${DateFmt.time(value.fireAt)}',
+                    AsyncError() => 'напоминание не проверить',
+                    _ => 'считаем…',
+                  },
+                  style: Fonts.sansStyle(
+                    size: 11.5,
+                    color: context.colors.ink2,
+                  ),
+                ),
               ),
               TextLink(
                 'напомнить',
@@ -458,9 +501,8 @@ class _FavoriteTile extends ConsumerWidget {
       return;
     }
     final current = ref.read(reminderOfProvider(event.id)).value;
-    final action = await showModalBottomSheet<_ReminderAction>(
+    final action = await showGlassSheet<_ReminderAction>(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ReminderSheet(hasReminder: current != null),
     );
     if (action == null || !context.mounted) return;
@@ -539,19 +581,7 @@ class _ReminderSheet extends StatelessWidget {
   final bool hasReminder;
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: EdgeInsets.fromLTRB(
-      Scale.gutter(MediaQuery.sizeOf(context).width),
-      0,
-      Scale.gutter(MediaQuery.sizeOf(context).width),
-      18,
-    ),
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-    decoration: BoxDecoration(
-      color: Palette.paper,
-      borderRadius: BorderRadius.circular(Scale.cardRadiusNarrow),
-      border: Border.all(color: Palette.cardLine),
-    ),
+  Widget build(BuildContext context) => SingleChildScrollView(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,

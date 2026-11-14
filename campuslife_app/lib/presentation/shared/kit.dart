@@ -28,7 +28,7 @@ class RiseIn extends StatefulWidget {
 class _RiseInState extends State<RiseIn> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 800),
+    duration: AppMotion.scene,
   );
   Timer? _timer;
 
@@ -65,7 +65,7 @@ class _RiseInState extends State<RiseIn> with SingleTickerProviderStateMixin {
     animation: _controller,
     child: widget.child,
     builder: (context, child) => Opacity(
-      opacity: Curves.easeOut.transform(_controller.value),
+      opacity: AppMotion.ease.transform(_controller.value),
       child: Transform.translate(
         offset: Offset(0, widget.distance * (1 - _controller.value)),
         child: child,
@@ -92,16 +92,17 @@ class MicroLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(left: 2, right: 2, bottom: 6),
     child: AnimatedDefaultTextStyle(
-      duration: const Duration(milliseconds: 240),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero : AppMotion.normal,
       style: Fonts.monoStyle(
         size: size,
         weight: 500,
         letterSpacing: size * 0.011,
         color: invalid
-            ? Palette.rose
+            ? context.colors.rose
             : focused
-            ? Palette.accent
-            : Palette.muted,
+            ? context.colors.accent
+            : context.colors.muted,
       ),
       child: Text(text.toUpperCase()),
     ),
@@ -180,15 +181,15 @@ class _GlassFieldState extends State<GlassField> {
   Widget build(BuildContext context) {
     final bad = (widget.error ?? '').isNotEmpty;
     final borderColor = bad
-        ? Palette.roseLine
+        ? context.colors.roseLine
         : _focused
-        ? Palette.accent.withValues(alpha: 0.6)
-        : Palette.line;
+        ? context.colors.accent.withValues(alpha: 0.6)
+        : context.colors.line;
     final background = bad
-        ? Palette.rose.withValues(alpha: 0.045)
+        ? context.colors.rose.withValues(alpha: 0.045)
         : _focused
-        ? Palette.glassFieldFocus
-        : Palette.glassField;
+        ? context.colors.glassFieldFocus
+        : context.colors.glassField;
 
     return Opacity(
       opacity: widget.enabled ? 1 : 0.45,
@@ -198,23 +199,23 @@ class _GlassFieldState extends State<GlassField> {
           MicroLabel(widget.label, focused: _focused, invalid: bad),
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            curve: Palette.ease,
+            curve: AppMotion.ease,
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(Scale.fieldRadius),
               border: Border.all(color: borderColor),
               boxShadow: bad
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Palette.roseSoft,
+                        color: context.colors.roseSoft,
                         blurRadius: 0,
                         spreadRadius: 3.5,
                       ),
                     ]
                   : _focused
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Palette.accentSoft,
+                        color: context.colors.accentSoft,
                         blurRadius: 0,
                         spreadRadius: 3.5,
                       ),
@@ -227,13 +228,17 @@ class _GlassFieldState extends State<GlassField> {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 220),
                   style: TextStyle(
-                    color: _focused ? Palette.accent : Palette.icon,
+                    color: _focused
+                        ? context.colors.accent
+                        : context.colors.icon,
                     fontSize: 16,
                   ),
                   child: Icon(
                     widget.icon,
                     size: 16,
-                    color: _focused ? Palette.accent : Palette.icon,
+                    color: _focused
+                        ? context.colors.accent
+                        : context.colors.icon,
                   ),
                 ),
                 Expanded(
@@ -269,12 +274,12 @@ class _GlassFieldState extends State<GlassField> {
                           ]
                         : null,
                     style: Fonts.sansStyle(size: 14),
-                    cursorColor: Palette.ink,
+                    cursorColor: context.colors.ink,
                     decoration: InputDecoration(
                       hintText: widget.hint,
                       hintStyle: Fonts.sansStyle(
                         size: 14,
-                        color: Palette.placeholder,
+                        color: context.colors.placeholder,
                       ),
                       counterText: '',
                       isDense: true,
@@ -313,14 +318,14 @@ class _GlassFieldState extends State<GlassField> {
               padding: const EdgeInsets.fromLTRB(2, 6, 2, 0),
               child: Row(
                 children: [
-                  const _Dot(size: 3, color: Palette.rose),
+                  _Dot(size: 3, color: context.colors.rose),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       widget.error!,
                       style: Fonts.sansStyle(
                         size: 11,
-                        color: Palette.rose,
+                        color: context.colors.rose,
                         height: 1.2,
                       ),
                     ),
@@ -350,17 +355,17 @@ class _SuffixButton extends StatelessWidget {
       child: SizedBox(
         width: 26,
         height: 26,
-        child: Center(child: Icon(icon, size: 15, color: Palette.icon)),
+        child: Center(child: Icon(icon, size: 15, color: context.colors.icon)),
       ),
     ),
   );
 }
 
 class _Dot extends StatelessWidget {
-  const _Dot({this.size = 6, this.color = Palette.accent, this.glow = false});
+  const _Dot({this.size = 6, this.color, this.glow = false});
 
   final double size;
-  final Color color;
+  final Color? color;
   final bool glow;
 
   @override
@@ -368,11 +373,9 @@ class _Dot extends StatelessWidget {
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: color,
+      color: color ?? context.colors.accent,
       shape: BoxShape.circle,
-      boxShadow: glow
-          ? [BoxShadow(color: color.withValues(alpha: 0.9), blurRadius: 8)]
-          : null,
+      boxShadow: glow ? AppShadows.glow : null,
     ),
   );
 }
@@ -392,16 +395,16 @@ class PasswordStrength extends StatefulWidget {
 }
 
 class _PasswordStrengthState extends State<PasswordStrength> {
-  static const _colors = [
-    Palette.rose,
-    Palette.gold,
-    Palette.accent,
-    Palette.mint,
-  ];
   static const _labels = ['слабый', 'средний', 'хороший', 'надёжный'];
 
   @override
   Widget build(BuildContext context) {
+    final colors = [
+      context.colors.rose,
+      context.colors.gold,
+      context.colors.accent,
+      context.colors.mint,
+    ];
     final active = widget.score.clamp(0, 4);
     return Opacity(
       opacity: widget.focused ? 1 : 0.45,
@@ -417,8 +420,8 @@ class _PasswordStrengthState extends State<PasswordStrength> {
                   height: 3,
                   decoration: BoxDecoration(
                     color: i < active
-                        ? _colors[active - 1]
-                        : const Color(0x170D1117),
+                        ? colors[active - 1]
+                        : context.colors.washDeep,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -431,7 +434,7 @@ class _PasswordStrengthState extends State<PasswordStrength> {
                 size: 9.5,
                 weight: 500,
                 letterSpacing: 0.08 * 9.5,
-                color: active == 0 ? Palette.muted : _colors[active - 1],
+                color: active == 0 ? context.colors.muted : colors[active - 1],
               ),
               child: Text(
                 (active == 0 ? 'пароль' : _labels[active - 1]).toUpperCase(),
@@ -476,16 +479,16 @@ class _PrimaryButtonState extends State<PrimaryButton> {
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedSlide(
         duration: const Duration(milliseconds: 180),
-        curve: Palette.ease,
+        curve: AppMotion.ease,
         offset: _hover && enabled ? const Offset(0, -0.06) : Offset.zero,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 240),
           decoration: BoxDecoration(
-            color: Palette.ink.withValues(alpha: enabled ? 1 : 0.34),
+            color: context.colors.ink.withValues(alpha: enabled ? 1 : 0.34),
             borderRadius: BorderRadius.circular(Scale.fieldRadius),
             boxShadow: [
               BoxShadow(
-                color: Palette.ink.withValues(
+                color: context.colors.ink.withValues(
                   alpha: !enabled ? 0.08 : (_hover ? 0.42 : 0.3),
                 ),
                 blurRadius: 16,
@@ -508,11 +511,11 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (widget.icon != null) ...[
-                      Icon(widget.icon, size: 15, color: Palette.paper),
+                      Icon(widget.icon, size: 15, color: context.colors.paper),
                       const SizedBox(width: 8),
                     ],
                     if (widget.busy)
-                      const FishLoader(size: 14, color: Palette.paper)
+                      FishLoader(size: 14, color: context.colors.paper)
                     else
                       Flexible(
                         child: Text(
@@ -522,7 +525,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                             size: 14,
                             weight: 600,
                             letterSpacing: -0.07,
-                            color: Palette.paper,
+                            color: context.colors.paper,
                           ),
                         ),
                       ),
@@ -530,12 +533,12 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                       const SizedBox(width: 8),
                       AnimatedSlide(
                         duration: const Duration(milliseconds: 300),
-                        curve: Palette.ease,
+                        curve: AppMotion.ease,
                         offset: _hover ? const Offset(0.25, 0) : Offset.zero,
                         child: Icon(
                           Icons.arrow_forward_rounded,
                           size: 15,
-                          color: Palette.paper,
+                          color: context.colors.paper,
                         ),
                       ),
                     ],
@@ -585,9 +588,13 @@ class _GhostButtonState extends State<GhostButton> {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: _hover ? 0.9 : 0.5),
+        color: _hover
+            ? context.colors.glassFieldFocus
+            : context.colors.glassField,
         borderRadius: BorderRadius.circular(Scale.fieldRadius),
-        border: Border.all(color: _hover ? Palette.lineStrong : Palette.line),
+        border: Border.all(
+          color: _hover ? context.colors.lineStrong : context.colors.line,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -602,7 +609,7 @@ class _GhostButtonState extends State<GhostButton> {
               style: Fonts.sansStyle(
                 size: 13,
                 weight: 500,
-                color: Palette.ink2,
+                color: context.colors.ink2,
               ),
             ),
           ),
@@ -629,7 +636,7 @@ class _TextLinkState extends State<TextLink> {
   Widget build(BuildContext context) {
     final style = Fonts.sansStyle(
       size: 12.5,
-      color: _hover ? Palette.ink : Palette.muted,
+      color: _hover ? context.colors.ink : context.colors.muted,
     );
     final painter = TextPainter(
       text: TextSpan(text: widget.label, style: style),
@@ -657,10 +664,10 @@ class _TextLinkState extends State<TextLink> {
             const SizedBox(height: 2),
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              curve: Palette.ease,
+              curve: AppMotion.ease,
               width: _hover ? width : 0,
               height: 1,
-              color: _hover ? Palette.ink : Colors.transparent,
+              color: _hover ? context.colors.ink : Colors.transparent,
             ),
           ],
         ),
@@ -681,8 +688,11 @@ class DividerLabel extends StatelessWidget {
     padding: EdgeInsets.only(top: top, bottom: bottom),
     child: Row(
       children: [
-        const Expanded(
-          child: ColoredBox(color: Palette.line2, child: SizedBox(height: 1)),
+        Expanded(
+          child: ColoredBox(
+            color: context.colors.line2,
+            child: const SizedBox(height: 1),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -691,12 +701,15 @@ class DividerLabel extends StatelessWidget {
             style: Fonts.monoStyle(
               size: 9.5,
               letterSpacing: 0.13 * 9.5,
-              color: Palette.icon,
+              color: context.colors.icon,
             ),
           ),
         ),
-        const Expanded(
-          child: ColoredBox(color: Palette.line2, child: SizedBox(height: 1)),
+        Expanded(
+          child: ColoredBox(
+            color: context.colors.line2,
+            child: const SizedBox(height: 1),
+          ),
         ),
       ],
     ),
@@ -730,9 +743,13 @@ class _RoleChipState extends State<RoleChip> {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: _hover ? 0.92 : 0.5),
+        color: _hover
+            ? context.colors.glassFieldFocus
+            : context.colors.glassField,
         borderRadius: BorderRadius.circular(Scale.chipRadius),
-        border: Border.all(color: _hover ? Palette.lineStrong : Palette.line),
+        border: Border.all(
+          color: _hover ? context.colors.lineStrong : context.colors.line,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -751,7 +768,7 @@ class _RoleChipState extends State<RoleChip> {
                   widget.label,
                   style: Fonts.sansStyle(
                     size: 12,
-                    color: _hover ? Palette.ink : Palette.ink2,
+                    color: _hover ? context.colors.ink : context.colors.ink2,
                   ),
                 ),
               ],
@@ -778,38 +795,27 @@ class SegTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: Palette.wash,
+      color: context.colors.wash,
       borderRadius: BorderRadius.circular(Scale.chipRadius),
     ),
     padding: const EdgeInsets.all(4),
     child: LayoutBuilder(
       builder: (context, box) {
-        final step = (box.maxWidth - 8) / items.length;
+        final step = box.maxWidth / items.length;
         return Stack(
           children: [
             AnimatedPositioned(
               duration: const Duration(milliseconds: 400),
-              curve: Palette.ease,
+              curve: AppMotion.ease,
               top: 0,
               bottom: 0,
               left: step * index,
               width: step,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.94),
+                  color: context.colors.glassFieldFocus,
                   borderRadius: BorderRadius.circular(Scale.chipRadius),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A0D1117),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                    BoxShadow(
-                      color: Color(0x2E0D1117),
-                      blurRadius: 12,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
+                  boxShadow: AppShadows.card,
                 ),
                 child: const SizedBox.expand(),
               ),
@@ -858,7 +864,7 @@ class _SegButton extends StatelessWidget {
           style: Fonts.sansStyle(
             size: 13,
             weight: 500,
-            color: selected ? Palette.ink : Palette.muted,
+            color: selected ? context.colors.ink : context.colors.muted,
           ),
           textAlign: TextAlign.center,
           child: FittedBox(
@@ -888,9 +894,9 @@ class GlassCard extends StatelessWidget {
         child: Container(
           width: cardWidth,
           decoration: BoxDecoration(
-            color: Palette.glass,
+            color: context.colors.glass,
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Palette.cardLine),
+            border: Border.all(color: context.colors.cardLine),
           ),
           padding: Scale.cardPadding(viewport),
           child: Column(
@@ -987,7 +993,7 @@ class _ToastViewState extends State<_ToastView> {
           opacity: _shown ? 1 : 0,
           child: AnimatedSlide(
             duration: const Duration(milliseconds: 340),
-            curve: Palette.ease,
+            curve: AppMotion.ease,
             offset: _shown ? Offset.zero : const Offset(0, 0.12),
             child: Container(
               constraints: BoxConstraints(
@@ -995,7 +1001,7 @@ class _ToastViewState extends State<_ToastView> {
               ),
               padding: const EdgeInsets.fromLTRB(13, 11, 16, 11),
               decoration: BoxDecoration(
-                color: Palette.ink.withValues(alpha: 0.94),
+                color: context.colors.ink.withValues(alpha: 0.94),
                 borderRadius: BorderRadius.circular(Scale.chipRadius),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
                 boxShadow: const [
@@ -1011,7 +1017,9 @@ class _ToastViewState extends State<_ToastView> {
                 children: [
                   _Dot(
                     size: 6,
-                    color: widget.error ? Palette.rose : Palette.accent,
+                    color: widget.error
+                        ? context.colors.rose
+                        : context.colors.accent,
                     glow: true,
                   ),
                   const SizedBox(width: 9),
@@ -1020,7 +1028,7 @@ class _ToastViewState extends State<_ToastView> {
                       widget.message,
                       style: Fonts.sansStyle(
                         size: 12.5,
-                        color: Palette.toastText,
+                        color: context.colors.paper,
                       ),
                     ),
                   ),

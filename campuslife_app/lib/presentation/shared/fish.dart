@@ -74,12 +74,14 @@ class FishHeartIcon extends StatelessWidget {
   final Color? heartColor;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: Size.square(size),
-    painter: _FishHeartPainter(
-      filled: filled,
-      color: color,
-      heartColor: heartColor ?? (filled ? Palette.rose : color),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: CustomPaint(
+      size: Size.square(size),
+      painter: _FishHeartPainter(
+        filled: filled,
+        color: color,
+        heartColor: heartColor ?? (filled ? context.colors.rose : color),
+      ),
     ),
   );
 }
@@ -141,7 +143,7 @@ class _FishLoaderState extends State<FishLoader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1500),
+    duration: AppMotion.ambient,
   );
 
   @override

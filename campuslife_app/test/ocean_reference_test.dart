@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:campuslife_app/app/theme.dart';
 import 'package:campuslife_app/presentation/shared/ocean/renderer.dart';
 import 'package:campuslife_app/presentation/shared/ocean/types.dart';
 import 'package:flutter/services.dart';
@@ -50,7 +51,7 @@ Shark referenceShark(SharkKind kind, double length, Float32List nodes) => Shark(
 
 void render(OceanRenderer renderer, OceanScene scene) {
   final recorder = ui.PictureRecorder();
-  renderer.render(ui.Canvas(recorder), scene, 1 / 60);
+  renderer.render(ui.Canvas(recorder), scene, 1 / 60, AppColors.light);
   recorder.endRecording().dispose();
 }
 
@@ -117,7 +118,7 @@ void main() {
     }
     final renderer = OceanRenderer()..resize(800, 1120, 1);
     final recorder = ui.PictureRecorder();
-    renderer.render(ui.Canvas(recorder), scene, 1 / 60);
+    renderer.render(ui.Canvas(recorder), scene, 1 / 60, AppColors.light);
     final picture = recorder.endRecording();
     final image = await picture.toImage(800, 1120);
     final png = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -149,7 +150,7 @@ void main() {
       ),
     );
     final recorder = ui.PictureRecorder();
-    renderer.render(ui.Canvas(recorder), scene, 1 / 60);
+    renderer.render(ui.Canvas(recorder), scene, 1 / 60, AppColors.light);
     final picture = recorder.endRecording();
     final image = await picture.toImage(120, 80);
     final bytes = (await image.toByteData())!;
@@ -157,9 +158,7 @@ void main() {
     File(
       'build/ocean_shots/fish.png',
     ).writeAsBytesSync(png!.buffer.asUint8List());
-    // With the old 1000px paragraph, the fish was painted off-canvas.
     var darkest = 255;
-    // y=28 is in row 4: its cell spans [28, 35), not [25, 32).
     for (var y = 28; y < 35; y++) {
       for (var x = 100; x < 105; x++) {
         final red = bytes.getUint8((y * 120 + x) * 4);

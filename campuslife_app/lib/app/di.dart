@@ -134,6 +134,22 @@ final eventProvider = FutureProvider.family<CampusEvent?, String>((
   return ref.watch(repositoryProvider).eventById(id);
 });
 
+/// Сколько свободных мест осталось: null — без лимита, 0 — мест нет.
+final seatsLeftProvider = FutureProvider.family<int?, String>((
+  ref,
+  eventId,
+) async {
+  ref.watch(revisionProvider);
+  final event = await ref.watch(
+    eventProvider(eventId).future,
+  );
+  if (event == null) return null;
+  final capacity = event.capacity;
+  if (capacity < 0) return null;
+  final taken = (await ref.watch(repositoryProvider).attendees(eventId)).length;
+  return capacity - taken;
+});
+
 final favoritesProvider = FutureProvider<List<CampusEvent>>((ref) async {
   ref.watch(revisionProvider);
   final user = ref.watch(sessionProvider);

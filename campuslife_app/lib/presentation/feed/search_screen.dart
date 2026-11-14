@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,8 @@ import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
+import '../shared/ocean/ocean_providers.dart';
+import '../shared/pixel.dart';
 import 'event_sheet.dart';
 import 'media_pool.dart';
 
@@ -60,6 +64,63 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       lastDate: last,
       initialDateRange: _range,
       helpText: 'Период событий',
+      builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
+        final colors = context.colors;
+        final dayBackground = WidgetStateProperty.resolveWith<Color>(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.accent
+              : Colors.transparent,
+        );
+        final dayForeground = WidgetStateProperty.resolveWith<Color>(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.paper
+              : states.contains(WidgetState.disabled)
+                  ? colors.placeholder
+                  : colors.ink,
+        );
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.sheet),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                datePickerTheme: DatePickerThemeData(
+                  backgroundColor: colors.glass,
+                  surfaceTintColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.sheet),
+                    side: BorderSide(color: colors.cardLine),
+                  ),
+                  headerHelpStyle: Fonts.monoStyle(
+                    size: 9,
+                    color: colors.accent,
+                  ),
+                  weekdayStyle: Fonts.monoStyle(size: 10, color: colors.muted),
+                  dayStyle: Fonts.sansStyle(size: 13, weight: 500),
+                  dayBackgroundColor: dayBackground,
+                  dayForegroundColor: dayForeground,
+                  todayBackgroundColor: WidgetStateProperty.all(
+                    Colors.transparent,
+                  ),
+                  todayForegroundColor: WidgetStateProperty.all(colors.accent),
+                  todayBorder: const BorderSide(color: Colors.transparent),
+                  yearStyle: Fonts.sansStyle(size: 13, color: colors.ink2),
+                  rangeSelectionBackgroundColor: colors.accentSoft,
+                  rangeSelectionOverlayColor: WidgetStateProperty.all(
+                    colors.accentSoft,
+                  ),
+                  dividerColor: colors.line,
+                  cancelButtonStyle: _pickerButton(colors),
+                  confirmButtonStyle: _pickerButton(colors, accent: true),
+                ),
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
     );
     if (picked == null) return;
     setState(() {
@@ -87,22 +148,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final size = MediaQuery.sizeOf(context);
     final results = ref.watch(searchResultsProvider(_filter));
     return Scaffold(
-      backgroundColor: Palette.paper,
+      backgroundColor: context.colors.paper,
       appBar: AppBar(
-        backgroundColor: Palette.paper,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: context.colors.paper,
+        surfaceTintColor: context.colors.paper.withValues(alpha: 0),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Palette.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: context.colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Поиск событий',
-          style: Fonts.sansStyle(size: 17, weight: 600, color: Palette.ink),
+          'найди своё',
+          style: Fonts.sansStyle(
+            size: 22,
+            weight: 500,
+            color: context.colors.ink,
+          ),
         ),
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            const Positioned.fill(child: OceanBackdrop(veil: 1.25)),
+            Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
@@ -124,7 +192,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
             SizedBox(
-              height: 40,
+              height: Scale.railIcon * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.symmetric(
@@ -159,7 +227,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SizedBox(height: 2),
             Expanded(
               child: results.when(
-                loading: () => const Center(child: FishLoader(size: 40)),
+                loading: () => ListView(
+                  padding: EdgeInsets.all(Scale.gutter(size.width)),
+                  children: const [
+                    RepaintBoundary(child: PixelSkeleton()),
+                    SizedBox(height: 24),
+                    RepaintBoundary(child: PixelSkeleton()),
+                  ],
+                ),
                 error: (e, _) => _SearchMessage(
                   icon: Icons.error_outline_rounded,
                   text: e is AppException ? e.message : 'Поиск недоступен',
@@ -173,6 +248,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     : _Results(events: events),
               ),
             ),
+            ],
+          ),
           ],
         ),
       ),
@@ -187,6 +264,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
+ButtonStyle _pickerButton(AppColors colors, {bool accent = false}) =>
+    TextButton.styleFrom(
+      foregroundColor: accent ? colors.accent : colors.muted,
+      textStyle: Fonts.sansStyle(size: 13, weight: accent ? 600 : 500),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        side: accent
+            ? BorderSide(color: colors.accentLine)
+            : BorderSide(color: colors.line),
+      ),
+    );
+
 class _CategoryChip extends StatelessWidget {
   const _CategoryChip({
     required this.category,
@@ -199,19 +288,27 @@ class _CategoryChip extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    button: true,
+    child: Material(
+    color: context.colors.paper.withValues(alpha: 0),
     borderRadius: BorderRadius.circular(Scale.chipRadius),
     child: InkWell(
       borderRadius: BorderRadius.circular(Scale.chipRadius),
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppMotion.normal,
+        curve: AppMotion.ease,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Palette.ink : Colors.white.withValues(alpha: 0.6),
+          color: selected ? context.colors.ink : context.colors.glassField,
           borderRadius: BorderRadius.circular(Scale.chipRadius),
-          border: Border.all(color: selected ? Palette.ink : Palette.line),
+          border: Border.all(
+            color: selected ? context.colors.ink : context.colors.line,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -219,7 +316,7 @@ class _CategoryChip extends StatelessWidget {
             Icon(
               FeedVisuals.iconFor(category),
               size: 14,
-              color: selected ? Palette.paper : FeedVisuals.colorFor(category),
+              color: selected ? context.colors.paper : context.colors.accent,
             ),
             const SizedBox(width: 6),
             Text(
@@ -227,12 +324,13 @@ class _CategoryChip extends StatelessWidget {
               style: Fonts.sansStyle(
                 size: 12.5,
                 weight: 500,
-                color: selected ? Palette.paper : Palette.ink2,
+                color: selected ? context.colors.paper : context.colors.ink2,
               ),
             ),
           ],
         ),
       ),
+    ),
     ),
   );
 }
@@ -246,24 +344,19 @@ class _RangeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    borderRadius: BorderRadius.circular(Scale.fieldRadius),
+    color: context.colors.glassField,
+    borderRadius: BorderRadius.circular(AppRadius.field),
     child: InkWell(
-      borderRadius: BorderRadius.circular(Scale.fieldRadius),
+      borderRadius: BorderRadius.circular(AppRadius.field),
       onTap: onTap,
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(Scale.fieldRadius),
-          border: Border.all(color: Palette.line),
-        ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.date_range_rounded,
               size: 18,
-              color: Palette.accent,
+              color: context.colors.accent,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -273,27 +366,26 @@ class _RangeTile extends StatelessWidget {
                     : '${DateFmt.dayMonth(range!.start)} — ${DateFmt.dayMonth(range!.end)}',
                 style: Fonts.sansStyle(
                   size: 13.5,
-                  color: range == null ? Palette.placeholder : Palette.ink,
+                  color: range == null
+                      ? context.colors.muted
+                      : context.colors.ink,
                 ),
               ),
             ),
             if (onClear != null)
-              InkWell(
-                onTap: onClear,
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: Palette.icon,
-                  ),
+              IconButton(
+                onPressed: onClear,
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: context.colors.icon,
                 ),
               )
             else
-              const Icon(
+              Icon(
                 Icons.keyboard_arrow_right_rounded,
                 size: 20,
-                color: Palette.icon,
+                color: context.colors.icon,
               ),
           ],
         ),
@@ -312,7 +404,11 @@ class _Results extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
     itemCount: events.length,
     separatorBuilder: (_, _) => const SizedBox(height: 10),
-    itemBuilder: (context, i) => _ResultTile(event: events[i]),
+    itemBuilder: (context, i) => RiseIn(
+      key: ValueKey(events[i].id),
+      delay: i.clamp(0, 5) * AppMotion.fast.inMilliseconds / 1000,
+      child: _ResultTile(event: events[i]),
+    ),
   );
 }
 
@@ -323,72 +419,72 @@ class _ResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cover = event.media.isNotEmpty ? event.media.first.path : '';
+    final cover = event.photos.isNotEmpty ? event.photos.first.path : '';
     return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      color: context.colors.glassField,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: context.colors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
         onTap: () => openEventSheet(context, event.id),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Palette.line),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 76,
-                    height: 76,
-                    child: PhotoTile(event: event, page: 0, path: cover),
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.field),
+                child: SizedBox(
+                  width: 76,
+                  height: 90,
+                  child: PhotoTile(event: event, page: 0, path: cover),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Fonts.sansStyle(size: 14, weight: 600),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.category.label.toUpperCase(),
+                      style: Fonts.monoStyle(
+                        size: 9,
+                        color: context.colors.accent,
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            FeedVisuals.iconFor(event.category),
-                            size: 13,
-                            color: FeedVisuals.colorFor(event.category),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            event.category.label,
-                            style: Fonts.monoStyle(
-                              size: 10,
-                              color: Palette.muted,
-                            ),
-                          ),
-                        ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Fonts.sansStyle(
+                        size: 14,
+                        weight: 600,
+                        color: context.colors.ink,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)} · ${event.place.isEmpty ? 'место уточняется' : event.place}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Fonts.sansStyle(size: 11.5, color: Palette.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)}',
+                      style: Fonts.monoStyle(
+                        size: 9,
+                        color: context.colors.muted,
                       ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      event.place.isEmpty ? 'Место уточняется' : event.place,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Fonts.sansStyle(
+                        size: 11.5,
+                        color: context.colors.ink2,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -416,15 +512,16 @@ class _SearchMessage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (fish)
-            const FishSchool(size: 76)
-          else
-            Icon(icon, size: 34, color: Palette.icon),
+          FishSchool(size: 76, color: context.colors.icon),
           const SizedBox(height: 14),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: Fonts.sansStyle(size: 15, weight: 600, color: Palette.ink2),
+            style: Fonts.sansStyle(
+              size: 15,
+              weight: 600,
+              color: context.colors.ink2,
+            ),
           ),
           if (hint != null) ...[
             const SizedBox(height: 6),
@@ -434,7 +531,7 @@ class _SearchMessage extends StatelessWidget {
               style: Fonts.sansStyle(
                 size: 12.5,
                 height: 1.4,
-                color: Palette.muted,
+                color: context.colors.muted,
               ),
             ),
           ],

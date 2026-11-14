@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../feed/media_pool.dart' show DateFmt;
 import '../shared/kit.dart';
+import '../shared/pixel.dart';
 
 class TicketCard extends StatelessWidget {
   const TicketCard({super.key, required this.bundle, this.onOpen});
@@ -30,13 +31,18 @@ class TicketCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   event.title.isEmpty ? 'Без названия' : event.title,
-                  style: Fonts.sansStyle(size: 15.5, weight: 700, height: 1.2),
+                  style: Fonts.sansStyle(
+                    size: 15.5,
+                    weight: 700,
+                    height: 1.2,
+                    color: context.colors.ink,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               RoleChip(
                 label: came ? 'пришёл' : 'ожидает',
-                dot: came ? Palette.mint : Palette.gold,
+                dot: came ? context.colors.accent : context.colors.gold,
               ),
             ],
           ),
@@ -44,8 +50,10 @@ class TicketCard extends StatelessWidget {
           Text(
             '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)}'
             ' · ${event.place.isEmpty ? 'место не указано' : event.place}',
-            style: Fonts.sansStyle(size: 12, color: Palette.muted),
+            style: Fonts.sansStyle(size: 12, color: context.colors.muted),
           ),
+          const SizedBox(height: 14),
+          const PixelProgress(value: 1, cells: 24),
           const SizedBox(height: 14),
           Center(
             child: Container(
@@ -53,20 +61,22 @@ class TicketCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(Scale.fieldRadius),
-                border: Border.all(color: Palette.cardLine),
+                border: Border.all(color: context.colors.cardLine),
               ),
-              child: QrImageView(
-                data: code,
-                size: 168,
-                version: QrVersions.auto,
-                backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: Palette.ink,
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: Palette.ink,
+              child: RiseIn(
+                child: QrImageView(
+                  data: code,
+                  size: 168,
+                  version: QrVersions.auto,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Palette.ink,
+                  ),
+                  dataModuleStyle: QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: AppColors.light.ink,
+                  ),
                 ),
               ),
             ),
@@ -77,7 +87,10 @@ class TicketCard extends StatelessWidget {
               Expanded(
                 child: SelectableText(
                   code,
-                  style: Fonts.monoStyle(size: 10.5, color: Palette.ink2),
+                  style: Fonts.monoStyle(
+                    size: 10.5,
+                    color: context.colors.ink2,
+                  ),
                 ),
               ),
               IconButton(
@@ -86,10 +99,10 @@ class TicketCard extends StatelessWidget {
                   Clipboard.setData(ClipboardData(text: code));
                   ToastController.show(context, 'Код билета скопирован');
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.copy_rounded,
                   size: 17,
-                  color: Palette.muted,
+                  color: context.colors.muted,
                 ),
               ),
             ],
@@ -100,7 +113,7 @@ class TicketCard extends StatelessWidget {
             style: Fonts.sansStyle(
               size: 11.5,
               height: 1.4,
-              color: Palette.muted,
+              color: context.colors.muted,
             ),
           ),
           if (event.status == EventStatus.cancelled) ...[

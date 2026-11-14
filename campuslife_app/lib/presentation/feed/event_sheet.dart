@@ -5,6 +5,7 @@ import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../shared/fish.dart';
+import '../shared/glass_sheet.dart';
 import '../shared/kit.dart';
 import 'media_pool.dart';
 
@@ -65,52 +66,35 @@ class _EventSheetState extends ConsumerState<EventSheet> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(eventProvider(widget.eventId));
-    return SizedBox(
-      height: MediaQuery.sizeOf(context).height * 0.62,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Palette.paper,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: Palette.cardLine)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x400D1117),
-              blurRadius: 40,
-              offset: Offset(0, -12),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: async.when(
-            loading: () => const Center(child: FishLoader(size: 40)),
-            error: (e, _) => _SheetError(message: '$e'),
-            data: (event) => event == null
-                ? const _SheetError(message: 'Событие недоступно')
-                : _content(context, event),
-          ),
+    ref.watch(seatsLeftProvider(widget.eventId));
+    return DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      minChildSize: 0.5,
+      maxChildSize: 1,
+      expand: false,
+      builder: (context, controller) => GlassSheet(
+        padding: EdgeInsets.zero,
+        child: async.when(
+          loading: () => const Center(child: FishLoader(size: 40)),
+          error: (e, _) => _SheetError(message: '$e'),
+          data: (event) => event == null
+              ? const _SheetError(message: 'Событие недоступно')
+              : _content(context, event, controller),
         ),
       ),
     );
   }
 
-  Widget _content(BuildContext context, CampusEvent event) {
+  Widget _content(
+    BuildContext context,
+    CampusEvent event,
+    ScrollController controller,
+  ) {
     final registered = FeedState.isRegistered(event.id);
+    final seatsLeft = ref.watch(seatsLeftProvider(event.id)).value;
+    final soldOut = seatsLeft != null && seatsLeft <= 0 && !registered;
     return Column(
       children: [
-        SizedBox(
-          height: 28,
-          child: Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Palette.lineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
@@ -126,7 +110,12 @@ class _EventSheetState extends ConsumerState<EventSheet> {
                   event.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Fonts.sansStyle(size: 17, weight: 600, height: 1.15),
+                  style: Fonts.sansStyle(
+                    size: 17,
+                    weight: 600,
+                    height: 1.15,
+                    color: context.colors.ink,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
@@ -137,7 +126,7 @@ class _EventSheetState extends ConsumerState<EventSheet> {
                   padding: EdgeInsets.zero,
                   iconSize: 20,
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded, color: Palette.muted),
+                  icon: Icon(Icons.close_rounded, color: context.colors.muted),
                 ),
               ),
             ],
@@ -146,6 +135,7 @@ class _EventSheetState extends ConsumerState<EventSheet> {
         const DividerLabel('детали'),
         Expanded(
           child: ListView(
+            controller: controller,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             children: [
               _InfoRow(
@@ -170,7 +160,7 @@ class _EventSheetState extends ConsumerState<EventSheet> {
                   style: Fonts.sansStyle(
                     size: 13,
                     height: 1.55,
-                    color: Palette.ink2,
+                    color: context.colors.ink2,
                   ),
                 ),
               ],
@@ -203,15 +193,17 @@ class _EventSheetState extends ConsumerState<EventSheet> {
             child: PrimaryButton(
               label: registered
                   ? 'Отменить запись'
-                  : event.capacity == 0
+                  : soldOut
                   ? 'Мест нет'
                   : 'Записаться',
               busy: _busy,
               arrow: false,
-              icon: registered ? Icons.person_off_rounded : Icons.check_rounded,
-              onPressed: event.capacity == 0 && !registered
-                  ? null
-                  : () => _toggleRegistration(event),
+              icon: registered
+                  ? Icons.person_off_rounded
+                  : soldOut
+                  ? Icons.block_rounded
+                  : Icons.check_rounded,
+              onPressed: soldOut ? null : () => _toggleRegistration(event),
             ),
           ),
         ),
@@ -241,7 +233,7 @@ class _Contacts extends ConsumerWidget {
     if (org == null) {
       return Text(
         'Организация не найдена',
-        style: Fonts.sansStyle(size: 12.5, color: Palette.muted),
+        style: Fonts.sansStyle(size: 12.5, color: context.colors.muted),
       );
     }
     return Column(
@@ -249,7 +241,11 @@ class _Contacts extends ConsumerWidget {
       children: [
         Text(
           org.name,
-          style: Fonts.sansStyle(size: 13.5, weight: 600, color: Palette.ink),
+          style: Fonts.sansStyle(
+            size: 13.5,
+            weight: 600,
+            color: context.colors.ink,
+          ),
         ),
         const SizedBox(height: 8),
         if (org.phone.isNotEmpty)
@@ -267,7 +263,7 @@ class _Contacts extends ConsumerWidget {
         if (org.phone.isEmpty && org.email.isEmpty)
           Text(
             'Контакты не указаны',
-            style: Fonts.sansStyle(size: 12.5, color: Palette.muted),
+            style: Fonts.sansStyle(size: 12.5, color: context.colors.muted),
           ),
       ],
     );
@@ -291,27 +287,26 @@ class _InfoRow extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Palette.muted),
+        Icon(icon, size: 16, color: context.colors.muted),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 84,
-          child: Text(
-            label.toUpperCase(),
-            style: Fonts.monoStyle(
-              size: 10,
-              letterSpacing: 0.1 * 10,
-              color: Palette.muted,
-            ),
-          ),
-        ),
         Expanded(
-          child: Text(
-            value,
-            style: Fonts.sansStyle(
-              size: 13.5,
-              height: 1.35,
-              color: Palette.ink,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: Fonts.monoStyle(size: 9, color: context.colors.muted),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: Fonts.sansStyle(
+                  size: 13.5,
+                  height: 1.35,
+                  color: context.colors.ink,
+                ),
+              ),
+            ],
           ),
         ),
       ],

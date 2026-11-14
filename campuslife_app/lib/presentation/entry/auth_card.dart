@@ -105,8 +105,6 @@ class _AuthCardState extends State<AuthCard> {
             widget.onTabChanged?.call(index == 1);
           },
         ),
-        // Switch directly: animating the card's height also shifts the
-        // surrounding vertically centred content on small screens.
         if (_tab == 0)
           _LoginForm(
             key: const ValueKey('login'),
@@ -226,7 +224,7 @@ class _LoginFormState extends State<_LoginForm> {
           for (final role in UserRole.values)
             RoleChip(
               label: role.label.toLowerCase(),
-              dot: Palette.roleDot(role),
+              dot: context.colors.roleDot(role),
               onTap: () => widget.onQuickLogin?.call(role),
             ),
         ],

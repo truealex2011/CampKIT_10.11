@@ -12,8 +12,11 @@ const types = {
   '.json': 'application/json',
   '.css': 'text/css',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.mp4': 'video/mp4',
   '.svg': 'image/svg+xml',
   '.otf': 'font/otf',
+  '.ttf': 'font/ttf',
   '.map': 'application/json',
 };
 
@@ -21,7 +24,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   const name = url.pathname === '/' ? 'index.html' : normalize(url.pathname).slice(1);
   const file = join(root, name.replace(/\//g, sep));
-  if (!file.startsWith(root)) {
+  if (!file.startsWith(root + sep)) {
     res.writeHead(403).end('forbidden');
     return;
   }

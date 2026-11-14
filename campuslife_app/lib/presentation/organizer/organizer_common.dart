@@ -99,6 +99,7 @@ class ParticipantPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final photos = event.photos;
     final video = event.video;
     return GlassCard(
@@ -107,132 +108,82 @@ class ParticipantPreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (video != null || photos.isNotEmpty) ...[
-            const SizedBox(height: 6),
             ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                height: 150,
-                width: double.infinity,
-                child: video != null
-                    ? PlaceholderTile(event: event, page: 0, video: true)
-                    : PhotoTile(event: event, page: 0, path: photos.first.path),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: photos.isNotEmpty
+                    ? PhotoTile(event: event, page: 0, path: photos.first.path)
+                    : PlaceholderTile(event: event, page: 0, video: true),
               ),
             ),
             if (photos.length > 1)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   '+${photos.length - 1} фото в карусели',
-                  style: Fonts.monoStyle(size: 9.5, color: Palette.muted),
+                  style: Fonts.monoStyle(size: 10, color: colors.muted),
                 ),
               ),
+            const SizedBox(height: 16),
           ],
-          const SizedBox(height: 12),
           Text(
             event.title.isEmpty ? 'Без названия' : event.title,
-            style: Fonts.sansStyle(size: 19, weight: 700, height: 1.15),
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              RoleChip(
-                label: event.category.label,
-                dot: FeedVisuals.colorFor(event.category),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_rounded,
-                size: 13,
-                color: Palette.muted,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  RuFmt.dateTime(event.startAt),
-                  style: Fonts.sansStyle(size: 13, color: Palette.ink2),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              const Icon(Icons.place_rounded, size: 13, color: Palette.muted),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  event.place.isEmpty ? 'Место не указано' : event.place,
-                  style: Fonts.sansStyle(size: 13, color: Palette.ink2),
-                ),
-              ),
-            ],
-          ),
-          if (event.capacity > 0) ...[
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                const Icon(
-                  Icons.local_see_rounded,
-                  size: 13,
-                  color: Palette.muted,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Мест: ${event.capacity}',
-                  style: Fonts.sansStyle(size: 13, color: Palette.ink2),
-                ),
-              ],
+            style: Fonts.sansStyle(
+              size: 20, weight: 700, height: 1.2, color: colors.ink,
             ),
-          ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              RoleChip(label: event.category.label, dot: colors.accent),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _PreviewMetadata(
+            icon: Icons.calendar_today_rounded,
+            text: RuFmt.dateTime(event.startAt),
+          ),
+          _PreviewMetadata(
+            icon: Icons.place_outlined,
+            text: event.place.isEmpty ? 'Место не указано' : event.place,
+          ),
+          if (event.capacity > 0)
+            _PreviewMetadata(
+              icon: Icons.confirmation_number_outlined,
+              text: 'Мест: ${event.capacity}',
+            ),
           if (event.description.isNotEmpty) ...[
-            const SizedBox(height: 9),
+            const SizedBox(height: 12),
             Text(
               event.description,
               style: Fonts.sansStyle(
-                size: 12.5,
-                height: 1.45,
-                color: Palette.muted,
+                size: 13, height: 1.5, color: colors.ink2,
               ),
             ),
           ],
           if (event.fields.isNotEmpty) ...[
-            DividerLabel('Анкета на вход'),
-            for (final f in event.fields)
+            const DividerLabel('Анкета на вход'),
+            for (final field in event.fields)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            f.label,
-                            style: Fonts.sansStyle(size: 13),
-                          ),
-                        ),
-                        Text(
-                          f.type.label,
-                          style: Fonts.monoStyle(
-                            size: 9.5,
-                            color: Palette.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (f.type == FieldType.choice && f.options.isNotEmpty)
+                    Text(field.label, style: Fonts.sansStyle(
+                      size: 13, weight: 600, color: colors.ink,
+                    )),
+                    const SizedBox(height: 4),
+                    Text(field.type.label, style: Fonts.monoStyle(
+                      size: 10, color: colors.muted,
+                    )),
+                    if (field.type == FieldType.choice && field.options.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          f.options.join(' · '),
-                          style: Fonts.sansStyle(
-                            size: 11,
-                            color: Palette.muted,
-                          ),
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(field.options.join(' · '),
+                          style: Fonts.sansStyle(size: 12, color: colors.ink2),
                         ),
                       ),
                   ],
@@ -243,6 +194,28 @@ class ParticipantPreview extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PreviewMetadata extends StatelessWidget {
+  const _PreviewMetadata({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: context.colors.accent),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text,
+          style: Fonts.sansStyle(size: 13, height: 1.4, color: context.colors.ink2),
+        )),
+      ],
+    ),
+  );
 }
 
 class EmptyPlate extends StatelessWidget {

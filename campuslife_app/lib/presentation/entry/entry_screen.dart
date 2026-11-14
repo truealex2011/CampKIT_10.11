@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../shared/ocean/ocean_view.dart';
 import '../shared/ocean/types.dart';
 import '../shared/ocean/world.dart';
 import '../shared/kit.dart';
+import '../shared/theme_controls.dart';
 import 'auth_card.dart';
 import 'entry_widgets.dart';
 
-class EntryScreen extends StatefulWidget {
+class EntryScreen extends ConsumerStatefulWidget {
   const EntryScreen({
     super.key,
     required this.world,
@@ -36,17 +39,32 @@ class EntryScreen extends StatefulWidget {
   final VoidCallback? onHistory;
 
   @override
-  State<EntryScreen> createState() => _EntryScreenState();
+  ConsumerState<EntryScreen> createState() => _EntryScreenState();
 }
 
-class _EntryScreenState extends State<EntryScreen> {
+class _EntryScreenState extends ConsumerState<EntryScreen> {
   bool _registering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final scope = context
+        .findAncestorStateOfType<State<UncontrolledProviderScope>>()!;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final initialMode = container.read(themeModeProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final mode = await ThemePreferences.restore();
+      if (scope.mounted && container.read(themeModeProvider) == initialMode) {
+        container.read(themeModeProvider.notifier).set(mode);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     return Scaffold(
-      backgroundColor: Palette.paper,
+      backgroundColor: context.colors.paper,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -68,8 +86,6 @@ class _EntryScreenState extends State<EntryScreen> {
                                 .clamp(0.0, double.infinity),
                           ),
                           child: Column(
-                            // Keep tall mobile signup forms anchored while fields
-                            // and validation messages change their height.
                             mainAxisAlignment: size.width < 720 && _registering
                                 ? MainAxisAlignment.start
                                 : MainAxisAlignment.center,
@@ -171,7 +187,7 @@ class Eyebrow extends StatelessWidget {
               size: 10.5,
               weight: 500,
               letterSpacing: 0.16 * 10.5,
-              color: Palette.accent,
+              color: context.colors.accent,
             ),
           ),
         ),
@@ -189,7 +205,7 @@ class _EmDash extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 22,
     height: 1,
-    color: Palette.accent.withValues(alpha: 0.4),
+    color: context.colors.accent.withValues(alpha: 0.4),
   );
 }
 
@@ -201,19 +217,13 @@ class HeroTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = Fonts.heroSize(width);
-    final shadowStyle =
-        Fonts.sansStyle(
-          size: size,
-          weight: 500,
-          letterSpacing: -0.036 * size,
-          height: 1.04,
-          color: Palette.ink,
-        ).copyWith(
-          shadows: const [
-            Shadow(color: Color(0xEAF6F6F3), blurRadius: 26),
-            Shadow(color: Color(0xCCF6F6F3), blurRadius: 7),
-          ],
-        );
+    final shadowStyle = Fonts.sansStyle(
+      size: size,
+      weight: 500,
+      letterSpacing: -0.036 * size,
+      height: 1.04,
+      color: context.colors.ink,
+    ).copyWith(shadows: AppShadows.textHalo(context.colors.paper));
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: size * 9),
       child: RichText(
@@ -229,7 +239,7 @@ class HeroTitle extends StatelessWidget {
                 weight: 400,
                 letterSpacing: -0.01 * size,
                 height: 1.04,
-                color: Palette.accent,
+                color: context.colors.accent,
                 style: FontStyle.italic,
                 family: Fonts.serif,
                 fallback: Fonts.serifFallback,
@@ -252,13 +262,11 @@ class Subtitle extends StatelessWidget {
     child: Text(
       'Афиша школьных событий в одной ленте: находи встречи и вступай в организации по id.',
       textAlign: TextAlign.center,
-      style: Fonts.sansStyle(size: 13.5, height: 1.5, color: Palette.ink2)
-          .copyWith(
-            shadows: const [
-              Shadow(color: Color(0xF2F6F6F3), blurRadius: 18),
-              Shadow(color: Color(0xE6F6F6F3), blurRadius: 5),
-            ],
-          ),
+      style: Fonts.sansStyle(
+        size: 13.5,
+        height: 1.5,
+        color: context.colors.ink2,
+      ).copyWith(shadows: AppShadows.textHalo(context.colors.paper)),
     ),
   );
 }

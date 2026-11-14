@@ -16,7 +16,11 @@ class NoteBlock extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(2, 10, 2, 0),
     child: RichText(
       text: TextSpan(
-        style: Fonts.sansStyle(size: 11.5, height: 1.5, color: Palette.muted),
+        style: Fonts.sansStyle(
+          size: 11.5,
+          height: 1.5,
+          color: context.colors.muted,
+        ),
         children: [
           if (lead != null)
             TextSpan(
@@ -25,7 +29,7 @@ class NoteBlock extends StatelessWidget {
                 size: 11.5,
                 height: 1.5,
                 weight: 600,
-                color: Palette.ink2,
+                color: context.colors.ink2,
               ),
             ),
           TextSpan(text: text),
@@ -63,18 +67,22 @@ class RoleCard extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 240),
-            curve: Palette.ease,
+            curve: AppMotion.ease,
             padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: selected ? 0.9 : 0.42),
+              color: selected
+                  ? context.colors.glassFieldFocus
+                  : context.colors.glassField,
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: selected ? Palette.accentLine : Palette.line,
+                color: selected
+                    ? context.colors.accentLine
+                    : context.colors.line,
               ),
               boxShadow: selected
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Palette.accentSoft,
+                        color: context.colors.accentSoft,
                         blurRadius: 0,
                         spreadRadius: 3,
                       ),
@@ -92,7 +100,7 @@ class RoleCard extends StatelessWidget {
                 Row(
                   children: [
                     if (icon != null) ...[
-                      Icon(icon, size: 14, color: Palette.ink),
+                      Icon(icon, size: 14, color: context.colors.ink),
                       const SizedBox(width: 6),
                     ],
                     Expanded(
@@ -104,7 +112,7 @@ class RoleCard extends StatelessWidget {
                           size: 13,
                           weight: 600,
                           letterSpacing: -0.13,
-                          color: Palette.ink,
+                          color: context.colors.ink,
                         ),
                       ),
                     ),
@@ -113,7 +121,7 @@ class RoleCard extends StatelessWidget {
                       Icon(
                         Icons.check_rounded,
                         size: 14,
-                        color: Palette.accent,
+                        color: context.colors.accent,
                       ),
                     ],
                   ],
@@ -124,7 +132,9 @@ class RoleCard extends StatelessWidget {
                   style: Fonts.sansStyle(
                     size: 11,
                     height: 1.4,
-                    color: selected ? Palette.ink2 : Palette.muted,
+                    color: selected
+                        ? context.colors.ink2
+                        : context.colors.muted,
                   ),
                 ),
               ],
@@ -172,11 +182,13 @@ class MiniTabs extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: i == index
-                          ? Colors.white.withValues(alpha: 0.86)
-                          : const Color(0x0A0D1117),
+                          ? context.colors.glassFieldFocus
+                          : context.colors.wash,
                       borderRadius: BorderRadius.circular(11),
                       border: Border.all(
-                        color: i == index ? Palette.line : Colors.transparent,
+                        color: i == index
+                            ? context.colors.line
+                            : Colors.transparent,
                       ),
                     ),
                     child: Text(
@@ -185,7 +197,9 @@ class MiniTabs extends StatelessWidget {
                       style: Fonts.sansStyle(
                         size: 12,
                         weight: 500,
-                        color: i == index ? Palette.ink : Palette.muted,
+                        color: i == index
+                            ? context.colors.ink
+                            : context.colors.muted,
                       ),
                     ),
                   ),
@@ -224,7 +238,7 @@ class WizardSteps extends StatelessWidget {
           style: Fonts.monoStyle(
             size: 10,
             letterSpacing: 0.1 * 10,
-            color: Palette.muted,
+            color: context.colors.muted,
           ),
         ),
       ],
@@ -249,10 +263,10 @@ class _StepDot extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: done
-            ? Palette.accent
+            ? context.colors.accent
             : current
-            ? Palette.ink
-            : Palette.washDeep,
+            ? context.colors.ink
+            : context.colors.washDeep,
       ),
       child: done
           ? const _Checkmark()
@@ -261,7 +275,7 @@ class _StepDot extends StatelessWidget {
               style: Fonts.monoStyle(
                 size: 10,
                 letterSpacing: 0,
-                color: current ? Palette.paper : Palette.muted,
+                color: current ? context.colors.paper : context.colors.muted,
               ),
             ),
     );
@@ -317,12 +331,12 @@ class _Rail extends StatelessWidget {
               builder: (context, box) => TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: fill),
                 duration: const Duration(milliseconds: 450),
-                curve: Palette.ease,
+                curve: AppMotion.ease,
                 builder: (context, value, _) => Container(
                   width: box.maxWidth * value,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Palette.accent, Palette.ink],
+                      colors: [context.colors.accent, context.colors.ink],
                     ),
                   ),
                 ),
@@ -360,9 +374,9 @@ class GlassSelect extends StatelessWidget {
       MicroLabel(label),
       Container(
         decoration: BoxDecoration(
-          color: Palette.glassField,
+          color: context.colors.glassField,
           borderRadius: BorderRadius.circular(Scale.fieldRadius),
-          border: Border.all(color: Palette.line),
+          border: Border.all(color: context.colors.line),
         ),
         child: Stack(
           alignment: Alignment.centerLeft,
@@ -374,13 +388,13 @@ class GlassSelect extends StatelessWidget {
                 isExpanded: true,
                 underline: const SizedBox.shrink(),
                 borderRadius: BorderRadius.circular(Scale.fieldRadius),
-                dropdownColor: Palette.paper,
-                icon: const Icon(
+                dropdownColor: context.colors.paper,
+                icon: Icon(
                   Icons.expand_more_rounded,
                   size: 18,
-                  color: Palette.icon,
+                  color: context.colors.icon,
                 ),
-                style: Fonts.sansStyle(size: 14, color: Palette.ink),
+                style: Fonts.sansStyle(size: 14, color: context.colors.ink),
                 items: [
                   if (value == null)
                     DropdownMenuItem<String?>(
@@ -389,7 +403,7 @@ class GlassSelect extends StatelessWidget {
                         placeholder,
                         style: Fonts.sansStyle(
                           size: 14,
-                          color: Palette.placeholder,
+                          color: context.colors.placeholder,
                         ),
                       ),
                     ),
@@ -401,7 +415,7 @@ class GlassSelect extends StatelessWidget {
             ),
             Positioned(
               left: 12,
-              child: Icon(icon, size: 16, color: Palette.icon),
+              child: Icon(icon, size: 16, color: context.colors.icon),
             ),
           ],
         ),
@@ -416,11 +430,20 @@ class VeilLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-    child: CustomPaint(painter: VeilPainter(), size: Size.infinite),
+    child: RepaintBoundary(
+      child: CustomPaint(
+        painter: VeilPainter(context.colors.paper),
+        size: Size.infinite,
+      ),
+    ),
   );
 }
 
 class VeilPainter extends CustomPainter {
+  const VeilPainter(this.paper);
+
+  final Color paper;
+
   @override
   void paint(Canvas canvas, Size size) {
     final rx = size.width * 1.18;
@@ -429,14 +452,14 @@ class VeilPainter extends CustomPainter {
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.scale(rx / ry, 1);
-    final shader = const RadialGradient(
+    final shader = RadialGradient(
       center: Alignment.center,
       radius: 1,
       colors: [
-        Color(0xCCF6F6F3),
-        Color(0x8FF6F6F3),
-        Color(0x38F6F6F3),
-        Color(0x00F6F6F3),
+        paper.withValues(alpha: 0.8),
+        paper.withValues(alpha: 0.56),
+        paper.withValues(alpha: 0.22),
+        paper.withValues(alpha: 0),
       ],
       stops: [0, 0.26, 0.52, 0.74],
     ).createShader(Rect.fromCircle(center: Offset.zero, radius: ry));
@@ -454,7 +477,8 @@ class VeilPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant VeilPainter oldDelegate) => false;
+  bool shouldRepaint(covariant VeilPainter oldDelegate) =>
+      oldDelegate.paper != paper;
 }
 
 class BrandLockup extends StatelessWidget {
@@ -471,7 +495,7 @@ class BrandLockup extends StatelessWidget {
         height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Palette.ink,
+          color: context.colors.ink,
           borderRadius: BorderRadius.circular(11),
           boxShadow: const [
             BoxShadow(
@@ -489,7 +513,7 @@ class BrandLockup extends StatelessWidget {
               size: 12,
               weight: 500,
               letterSpacing: -0.48,
-              color: Palette.paper,
+              color: context.colors.paper,
             ),
           ),
         ),
@@ -497,9 +521,13 @@ class BrandLockup extends StatelessWidget {
       const SizedBox(width: 11),
       RichText(
         text: TextSpan(
-          style: Fonts.sansStyle(size: 16, letterSpacing: -0.4),
-          children: const [
-            TextSpan(
+          style: Fonts.sansStyle(
+            size: 16,
+            letterSpacing: -0.4,
+            color: context.colors.ink,
+          ),
+          children: [
+            const TextSpan(
               text: 'Campus',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -507,7 +535,7 @@ class BrandLockup extends StatelessWidget {
               text: 'Life',
               style: TextStyle(
                 fontWeight: FontWeight.w300,
-                color: Palette.accent,
+                color: context.colors.accent,
               ),
             ),
           ],
@@ -530,8 +558,19 @@ class _LiveBadgeState extends State<LiveBadge>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  )..repeat();
+    duration: AppMotion.ambient,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulse.stop();
+      _pulse.value = 1;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -544,8 +583,8 @@ class _LiveBadgeState extends State<LiveBadge>
     padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(Scale.chipRadius),
-      border: Border.all(color: Palette.line2),
-      color: Colors.white.withValues(alpha: 0.6),
+      border: Border.all(color: context.colors.line2),
+      color: context.colors.glass,
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -564,10 +603,10 @@ class _LiveBadgeState extends State<LiveBadge>
                   height: 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Palette.accent,
+                    color: context.colors.accent,
                     boxShadow: [
                       BoxShadow(
-                        color: Palette.accent.withValues(
+                        color: context.colors.accent.withValues(
                           alpha: 0.5 * (1 - ring),
                         ),
                         spreadRadius: 9 * ring,
@@ -585,7 +624,7 @@ class _LiveBadgeState extends State<LiveBadge>
           style: Fonts.monoStyle(
             size: 10.5,
             letterSpacing: 0.06 * 10.5,
-            color: Palette.muted,
+            color: context.colors.muted,
           ),
         ),
       ],
@@ -612,12 +651,12 @@ class TopPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Scale.chipRadius),
-            border: Border.all(color: Palette.line),
-            color: Colors.white.withValues(alpha: 0.66),
+            border: Border.all(color: context.colors.line),
+            color: context.colors.glass,
           ),
           child: Text(
             label,
-            style: Fonts.sansStyle(size: 12.5, color: Palette.ink2),
+            style: Fonts.sansStyle(size: 12.5, color: context.colors.ink2),
           ),
         ),
       ),

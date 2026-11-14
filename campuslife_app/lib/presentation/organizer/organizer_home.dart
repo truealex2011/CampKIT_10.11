@@ -9,6 +9,7 @@ import '../entry/entry_widgets.dart';
 import '../shared/app_routes.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
+import '../shared/ocean/ocean_providers.dart';
 import 'checkin_screen.dart';
 import 'organizer_common.dart';
 import 'stats_view.dart';
@@ -27,34 +28,46 @@ class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
   int _tab = 0;
   int _orgIndex = 0;
 
+  Future<void> _signOut() async {
+    final navigator = Navigator.of(context);
+    await ref.read(sessionProvider.notifier).signOut();
+    if (!navigator.mounted) return;
+    navigator.pushNamedAndRemoveUntil(AppRoutes.entry, (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final orgs = ref.watch(organizerOrgsProvider);
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: Scale.gutter(MediaQuery.sizeOf(context).width),
-          ),
-          child: switch (orgs) {
-            AsyncData(:final value) =>
-              value.isEmpty
-                  ? _ConsoleShell(
-                      body: const EmptyPlate(
-                        lead: 'Пусто.',
-                        text:
-                            'За тобой не числится ни одна организация. Обратись к админу за ключом приглашения.',
-                      ),
-                    )
-                  : _buildOrg(value),
-            AsyncError() => _ConsoleShell(
-              body: const EmptyPlate(
-                lead: 'Сбой.',
-                text: 'Не удалось загрузить организации. Попробуй позже.',
+        child: Stack(
+          children: [
+            const Positioned.fill(child: OceanBackdrop(veil: 1.35)),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Scale.gutter(MediaQuery.sizeOf(context).width),
               ),
+              child: switch (orgs) {
+                AsyncData(:final value) =>
+                  value.isEmpty
+                      ? _ConsoleShell(
+                          body: const EmptyPlate(
+                            lead: 'Пусто.',
+                            text:
+                                'За тобой не числится ни одна организация. Обратись к админу за ключом приглашения.',
+                          ),
+                        )
+                      : _buildOrg(value),
+                AsyncError() => _ConsoleShell(
+                  body: const EmptyPlate(
+                    lead: 'Сбой.',
+                    text: 'Не удалось загрузить организации. Попробуй позже.',
+                  ),
+                ),
+                _ => const Center(child: FishLoader(size: 40)),
+              },
             ),
-            _ => const Center(child: FishLoader(size: 40)),
-          },
+          ],
         ),
       ),
     );
@@ -67,7 +80,34 @@ class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const MicroLabel('кабинет организатора'),
+          Row(
+            children: [
+              const MicroLabel('кабинет организатора'),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Профиль',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamed(AppRoutes.profile),
+                icon: const Icon(
+                  Icons.person_outline_rounded,
+                  size: 20,
+                  color: Palette.icon,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Выйти',
+                visualDensity: VisualDensity.compact,
+                onPressed: _signOut,
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: Palette.icon,
+                ),
+              ),
+            ],
+          ),
           Text(
             org.name,
             style: Fonts.sansStyle(

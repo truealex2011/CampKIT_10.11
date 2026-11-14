@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../../../app/theme.dart';
 import 'ocean_math.dart';
 import 'types.dart';
 
@@ -26,14 +27,9 @@ const List<String> _accentHex = [
 const double _bgLum = 248;
 const double _inkLum = 66;
 
-/// Quantize luminance before it reaches a glyph colour. Continuous shades
-/// would otherwise produce a unique colour per cell per frame, thrashing the
-/// paragraph cache (a rebuild per miss is the most expensive thing in the
-/// paint loop). A 6-unit step is far below the flicker jitter the reference
-/// itself applies, so the picture is unchanged to the eye.
 double _qLum(double v) => (v / 6).roundToDouble() * 6;
 
-ui.Color _ink(double lum, double tr, double tg, double tb) {
+ui.Color _ink(AppColors colors, double lum, double tr, double tg, double tb) {
   int c(double v) {
     final r = v.round();
     return r < 0
@@ -44,11 +40,16 @@ ui.Color _ink(double lum, double tr, double tg, double tb) {
   }
 
   const k = 0.62;
+  final tone = ui.Color.lerp(
+    colors.paper,
+    colors.ink,
+    ((_bgLum - lum) / (_bgLum - _inkLum)).clamp(0, 1),
+  )!;
   return ui.Color.fromARGB(
     255,
-    c(lum * (1 + (tr - 1) * k)),
-    c(lum * (1 + (tg - 1) * k)),
-    c(lum * (1 + (tb - 1) * k)),
+    c(tone.r * 255 * (1 + (tr - 1) * k)),
+    c(tone.g * 255 * (1 + (tg - 1) * k)),
+    c(tone.b * 255 * (1 + (tb - 1) * k)),
   );
 }
 
@@ -441,8 +442,10 @@ class OceanRenderer {
   static final List<ui.Color> _accents = _accentHex
       .map((h) => ui.Color(int.parse(h.substring(1), radix: 16) | 0xFF000000))
       .toList();
-  static const ui.Color _paper = ui.Color(0xFFF6F6F3);
-  static const ui.Color _dark = ui.Color(0xFF141A22);
+  AppColors _colors = AppColors.light;
+
+  ui.Color get _paper => _colors.paper;
+  ui.Color get _dark => _colors.ink;
 
   final ui.Paint _block = ui.Paint()..isAntiAlias = false;
   final ui.Paint _paperPaint = ui.Paint()..isAntiAlias = false;
@@ -463,7 +466,6 @@ class OceanRenderer {
     this.width = width;
     this.height = height;
     this.dpr = dpr;
-    // Same logical cell size as the HTML reference, including phone widths.
     cw = (width / 215).round().clamp(5, 8).toDouble();
     ch = (cw * 1.45).round().toDouble();
     cols = (width / cw).ceil();
@@ -492,7 +494,6 @@ class OceanRenderer {
       final col = i % cols;
       final row = i ~/ cols;
 
-      // The reference has no ambient dots. Only sparse swimming wakes remain.
       dotKind[i] = 0;
       dotPhase[i] = hash3(col, row, 23) * math.pi * 2;
       dotFreq[i] = 0.3 + hash3(col, row, 37) * 1.1;
@@ -505,8 +506,14 @@ class OceanRenderer {
     }
   }
 
-  void render(ui.Canvas ctx, OceanScene scene, double dt) {
+  void render(ui.Canvas ctx, OceanScene scene, double dt, AppColors colors) {
     if (cols == 0) return;
+    if (_colors != colors) {
+      _colors = colors;
+      for (var i = 0; i < fishStyles.length; i++) {
+        fishStyles[i] = colors.ink2.withValues(alpha: _fishAlphas[i]);
+      }
+    }
     final t = scene.time;
 
     _consumeEvents(scene);
@@ -984,13 +991,13 @@ class OceanRenderer {
           level = _bgLum + (level - _bgLum) * dim;
           _block.color = roll < 0.05
               ? _accents[key % _accents.length]
-              : _ink(_qLum(level), tr, tg, tb);
+              : _ink(_colors, _qLum(level), tr, tg, tb);
           ctx.drawRect(ui.Rect.fromLTWH(x, y, cw - 1, ch - 1), _block);
         } else {
           final g = _bgLum - (52 + shade * 96) * dim;
           final color = roll < 0.07
               ? _accents[key % _accents.length]
-              : _ink(_qLum(g), tr, tg, tb);
+              : _ink(_colors, _qLum(g), tr, tg, tb);
           _glyph(
             ctx,
             edgeLight[(key >> 8) % edgeLight.length],
@@ -1030,7 +1037,7 @@ class OceanRenderer {
 
       level = math.min(level, _bgLum - 62);
       level = _bgLum + (level - _bgLum) * dim;
-      _block.color = _ink(_qLum(level), tr, tg, tb);
+      _block.color = _ink(_colors, _qLum(level), tr, tg, tb);
       ctx.drawRect(ui.Rect.fromLTWH(x, y, cw - 1, ch - 1), _block);
 
       final contrast = level > 150
@@ -1044,7 +1051,7 @@ class OceanRenderer {
       } else if (roll < 0.012) {
         color = _dark;
       } else {
-        color = _ink(_qLum(contrast), tr, tg, tb);
+        color = _ink(_colors, _qLum(contrast), tr, tg, tb);
       }
       if (glyph != null) {
         _glyph(ctx, glyph, x + cw / 2, y + ch / 2 + 1, color);
@@ -1189,8 +1196,6 @@ class OceanRenderer {
     double cy,
     ui.Color color,
   ) {
-    // Keep exact colour AND alpha: fish at different depths must not reuse
-    // the first fish's opacity. Multiplication also preserves the key on web.
     final key = glyph.codeUnitAt(0) * 0x100000000 + color.toARGB32();
     var p = _paragraphCache[key];
     if (p == null) {
@@ -1198,9 +1203,6 @@ class OceanRenderer {
       p = _buildParagraph(glyph, color);
       _paragraphCache[key] = p;
     }
-    // Canvas textBaseline='middle' anchors the em box, not the line box.
-    // The bundled Cascadia Mono's alphabetic baseline is ~0.3em below it
-    // (measured in the reference canvas at 6, 9 and 11px).
     ctx.drawParagraph(
       p,
       ui.Offset(cx - p.width / 2, cy + _fontSize * 0.3 - p.alphabeticBaseline),
@@ -1225,8 +1227,6 @@ class OceanRenderer {
           )
           ..addText(glyph);
     final p = builder.build();
-    // Paragraph.width is the layout constraint, not the glyph width. Using
-    // 1000 here shifted every skin/fin glyph about 500px left of its cell.
     p.layout(ui.ParagraphConstraints(width: cw));
     return p;
   }

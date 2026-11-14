@@ -7,6 +7,8 @@ import '../../domain/entities.dart';
 import '../../domain/repositories.dart';
 import '../shared/app_routes.dart';
 import '../shared/kit.dart';
+import '../shared/ocean/ocean_providers.dart';
+import '../shared/pixel.dart';
 import 'admin_common.dart';
 import 'invite_keys_tab.dart';
 import 'management_tab.dart';
@@ -47,18 +49,21 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     final counters = ref.watch(adminCountersProvider);
     final gutter = AdminUi.gutter(context);
     return Scaffold(
-      backgroundColor: Palette.paper,
+      backgroundColor: context.colors.paper,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFCFCFA), Palette.paper],
+            colors: [context.colors.glassField, context.colors.paper],
           ),
         ),
         child: SafeArea(
           bottom: false,
-          child: Column(
+          child: Stack(
+            children: [
+              const Positioned.fill(child: OceanBackdrop(veil: 1.45)),
+              Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
@@ -83,7 +88,18 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                 padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 4),
                 child: SegTabs(items: _tabs, index: _tab, onSelect: _select),
               ),
-              Expanded(child: _section()),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : AppMotion.normal,
+                  switchInCurve: AppMotion.ease,
+                  switchOutCurve: AppMotion.ease,
+                  child: KeyedSubtree(key: ValueKey(_tab), child: _section()),
+                ),
+              ),
+              ],
+            ),
             ],
           ),
         ),
@@ -127,7 +143,7 @@ class _Topline extends StatelessWidget {
                   size: 25,
                   weight: 700,
                   letterSpacing: -0.9,
-                  color: Palette.ink,
+                  color: context.colors.ink,
                 ),
               ),
               const SizedBox(height: 5),
@@ -140,7 +156,7 @@ class _Topline extends StatelessWidget {
                 style: Fonts.monoStyle(
                   size: 10,
                   letterSpacing: 0.06 * 10,
-                  color: Palette.muted,
+                  color: context.colors.muted,
                 ),
               ),
             ],
@@ -170,15 +186,7 @@ class _ProfileButton extends StatelessWidget {
     onTap: onTap,
     tooltip: 'Профиль администратора',
     filled: true,
-    child: Text(
-      label,
-      style: Fonts.monoStyle(
-        size: 12.5,
-        weight: 600,
-        letterSpacing: 0,
-        color: Palette.paper,
-      ),
-    ),
+    child: PixelFishMark(size: 28, color: context.colors.paper),
   );
 }
 
@@ -197,7 +205,7 @@ class _RoundButton extends StatelessWidget {
   Widget build(BuildContext context) => _HoverCircle(
     onTap: onTap,
     tooltip: tooltip,
-    child: Icon(icon, size: 16, color: Palette.ink2),
+    child: Icon(icon, size: 16, color: context.colors.ink2),
   );
 }
 
@@ -229,32 +237,21 @@ class _HoverCircleState extends State<_HoverCircle> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Palette.ease,
-        width: 38,
-        height: 38,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero : AppMotion.normal,
+        curve: AppMotion.ease,
+        width: Scale.railIcon,
+        height: Scale.railIcon,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: widget.filled
-              ? Palette.ink.withValues(alpha: _hover ? 1 : 0.9)
-              : Colors.white.withValues(alpha: _hover ? 0.95 : 0.55),
+          color: widget.filled ? context.colors.ink : context.colors.glassField,
           border: Border.all(
-            color: widget.filled
-                ? Palette.ink
-                : _hover
-                ? Palette.lineStrong
-                : Palette.line,
+            color: _hover ? context.colors.lineStrong : context.colors.line,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Palette.ink.withValues(alpha: _hover ? 0.26 : 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 7),
-            ),
-          ],
+          boxShadow: AppShadows.card,
         ),
         child: Material(
-          color: Colors.transparent,
+          color: context.colors.paper.withValues(alpha: 0),
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -275,60 +272,48 @@ class _CountersStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => async.when(
-    loading: () => _grid(null),
+    loading: () => _grid(context, null),
     error: (error, _) => AdminCard(
       bottom: 0,
       child: Row(
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 15, color: Palette.rose),
+          Icon(Icons.cloud_off_rounded, size: 15, color: context.colors.rose),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
               AdminUi.failureMessage(error),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Fonts.sansStyle(
-                size: 11.5,
-                height: 1.35,
-                color: Palette.muted,
-              ),
+              style: Fonts.sansStyle(size: 11.5, height: 1.35, color: context.colors.muted),
             ),
           ),
           TextLink('Обновить счётчики', onTap: onRetry),
         ],
       ),
     ),
-    data: (counters) => _grid(counters),
+    data: (counters) => _grid(context, counters),
   );
 
-  Widget _grid(AppCounters? counters) => Column(
+  Widget _grid(BuildContext context, AppCounters? counters) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Row(
         children: [
-          _cell('События', counters?.events),
+          _cell(context, 'События', counters?.events),
           _gap(),
-          _cell('Организации', counters?.orgs),
+          _cell(context, 'Организации', counters?.orgs),
           _gap(),
-          _cell('Пользователи', counters?.users),
+          _cell(context, 'Пользователи', counters?.users),
         ],
       ),
       const SizedBox(height: 6),
       Row(
         children: [
-          _cell(
-            'На модерации',
-            counters?.pendingModeration,
-            accent: Palette.gold,
-          ),
+          _cell(context, 'На модерации', counters?.pendingModeration),
           _gap(),
-          _cell('Жалобы', counters?.openReports, accent: Palette.rose),
+          _cell(context, 'Жалобы', counters?.openReports, accent: context.colors.rose),
           _gap(),
-          _cell(
-            'Свободные ключи',
-            counters?.activeInviteKeys,
-            accent: Palette.accent,
-          ),
+          _cell(context, 'Свободные ключи', counters?.activeInviteKeys, accent: context.colors.accent),
         ],
       ),
     ],
@@ -336,26 +321,30 @@ class _CountersStrip extends StatelessWidget {
 
   static Widget _gap() => const SizedBox(width: 6);
 
-  Widget _cell(String label, int? value, {Color accent = Palette.ink}) =>
+  Widget _cell(BuildContext context, String label, int? value, {Color? accent}) =>
       Expanded(
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Palette.line),
+            color: context.colors.glassField,
+            borderRadius: BorderRadius.circular(AppRadius.field),
+            border: Border.all(color: context.colors.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value == null ? '—' : '$value',
-                maxLines: 1,
-                style: Fonts.monoStyle(
-                  size: 17,
-                  weight: 500,
-                  letterSpacing: -0.4,
-                  color: value == null ? Palette.placeholder : accent,
+              TweenAnimationBuilder<double>(
+                tween: Tween(end: (value ?? 0).toDouble()),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : AppMotion.scene,
+                curve: AppMotion.ease,
+                builder: (context, number, _) => Text(
+                  value == null ? '—' : '${number.round()}',
+                  maxLines: 1,
+                  style: Fonts.monoStyle(
+                    size: 17, weight: 500, letterSpacing: -0.4,
+                    color: value == null ? context.colors.placeholder : accent ?? context.colors.ink,
+                  ),
                 ),
               ),
               const SizedBox(height: 3),
@@ -363,12 +352,7 @@ class _CountersStrip extends StatelessWidget {
                 label.toUpperCase(),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Fonts.monoStyle(
-                  size: 8.5,
-                  weight: 500,
-                  letterSpacing: 0.12 * 8.5,
-                  color: Palette.muted,
-                ),
+                style: Fonts.monoStyle(size: 8.5, weight: 500, letterSpacing: 0.12 * 8.5, color: context.colors.muted),
               ),
             ],
           ),

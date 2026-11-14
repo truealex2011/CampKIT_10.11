@@ -11,7 +11,10 @@ import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../shared/fish.dart';
+import '../shared/glass_sheet.dart';
+import '../shared/ocean/ocean_providers.dart';
 import '../shared/kit.dart';
+import '../shared/pixel.dart';
 import 'event_sheet.dart';
 import 'media_pool.dart';
 
@@ -70,6 +73,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          const OceanBackdrop(veil: 1.35),
           feed.when(
             skipLoadingOnReload: true,
             loading: () => const _FeedPlaceholder(label: 'Загружаем афишу…'),
@@ -237,9 +241,8 @@ class _EventCardState extends ConsumerState<EventCard> {
       if (mounted) ToastController.show(context, e.message, error: true);
     }
     if (!mounted) return;
-    final result = await showModalBottomSheet<_ReminderChoice>(
+    final result = await showGlassSheet<_ReminderChoice>(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ReminderSheet(hasReminder: current != null),
     );
     if (result == null || !mounted) return;
@@ -320,9 +323,9 @@ class _EventCardState extends ConsumerState<EventCard> {
         ),
         const Positioned.fill(child: _FeedScrim()),
         Positioned(
-          left: 76,
-          right: 88,
-          bottom: 24,
+          left: Scale.captionInset,
+          right: Scale.railWidth + Scale.railInset * 2,
+          bottom: Scale.captionInset + MediaQuery.paddingOf(context).bottom,
           child: IgnorePointer(
             ignoring: _registrationMode,
             child: _Caption(
@@ -349,7 +352,11 @@ class _EventCardState extends ConsumerState<EventCard> {
         ),
         Positioned(
           right: 8,
-          bottom: _railBottom,
+          bottom: _railBottom.clamp(
+            MediaQuery.paddingOf(context).bottom,
+            (size.height - Scale.railCell * 5 - Scale.railGap * 4)
+                .clamp(MediaQuery.paddingOf(context).bottom, size.height),
+          ),
           child: _RightRail(
             event: event,
             hasReminder: hasReminder,
@@ -471,7 +478,7 @@ class _RightRail extends StatelessWidget {
   );
 }
 
-const double _railGap = 14;
+const double _railGap = Scale.railGap;
 
 class _RailButton extends StatelessWidget {
   const _RailButton({
@@ -488,8 +495,8 @@ class _RailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 74,
-    height: 70,
+    width: Scale.railWidth,
+    height: Scale.railCell,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -602,7 +609,7 @@ class _DragLikeButtonState extends State<_DragLikeButton>
   bool _entered = false;
   double? _holdOriginX;
 
-  double get _trackLength => widget.railWidth - 13 + 153;
+  double get _trackLength => widget.railWidth - 13 + Scale.registrationReach;
 
   double get _threshold => _trackLength * 0.4;
 
@@ -611,29 +618,16 @@ class _DragLikeButtonState extends State<_DragLikeButton>
     super.initState();
     _drag = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 520),
+      duration: AppMotion.scene,
       lowerBound: 0,
       upperBound: _trackLength * 0.72,
       value: 0,
-    )..addListener(() => setState(() {}));
-    _fly = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 520),
-    )..addListener(() => setState(() {}));
-    _hold = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )
-      ..addListener(() => setState(() {}))
+    );
+    _fly = AnimationController(vsync: this, duration: AppMotion.scene);
+    _hold = AnimationController(vsync: this, duration: AppMotion.hold)
       ..addStatusListener(_onHoldStatus);
-    _swim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..addListener(() => setState(() {}));
-    _splash = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..addListener(() => setState(() {}));
+    _swim = AnimationController(vsync: this, duration: AppMotion.ambient);
+    _splash = AnimationController(vsync: this, duration: AppMotion.scene);
   }
 
   void _onHoldStatus(AnimationStatus status) {
@@ -671,7 +665,7 @@ class _DragLikeButtonState extends State<_DragLikeButton>
 
   void _onHoldStart(LongPressStartDetails d) {
     _holdOriginX = d.localPosition.dx;
-    if (widget.armed) return; // режим уже включён — это нажатие для перетаскивания
+    if (widget.armed) return;
     _crossed = false;
     HapticFeedback.lightImpact();
     _hold.forward(from: 0);
@@ -688,22 +682,27 @@ class _DragLikeButtonState extends State<_DragLikeButton>
     } else {
       _holdOriginX = null;
       _hold.reverse();
+      _tapLike();
     }
   }
 
   void _onHoldCancel() {
-    if (widget.armed) {
-      _finishDrag();
-    } else {
-      _holdOriginX = null;
-      _hold.stop();
-      _hold.reverse();
-    }
+    _holdOriginX = null;
+    _hold.stop();
+    _hold.value = 0;
+    _drag.stop();
+    _drag.value = 0;
+    _crossed = false;
+    if (widget.armed) widget.onExitMode();
   }
 
   double _flickDx = 0;
 
   void _onStart(DragStartDetails _) {
+    if (!widget.armed) {
+      _hold.stop();
+      _hold.value = 0;
+    }
     _flickDx = 0;
     if (!widget.armed) return;
     _drag.stop();
@@ -738,8 +737,8 @@ class _DragLikeButtonState extends State<_DragLikeButton>
 
   void _flyLike() {
     HapticFeedback.lightImpact();
-    widget.onLike();
-    _fly.forward(from: 0);
+    if (!widget.isFavorite) widget.onLike();
+    if (!MediaQuery.disableAnimationsOf(context)) _fly.forward(from: 0);
   }
 
   void _applyDrag(double raw) {
@@ -756,32 +755,43 @@ class _DragLikeButtonState extends State<_DragLikeButton>
     final committed = _drag.value >= _threshold;
     if (committed) {
       HapticFeedback.selectionClick();
-      _splash.forward(from: 0);
+      if (!MediaQuery.disableAnimationsOf(context)) _splash.forward(from: 0);
       widget.onRegister();
     }
     _holdOriginX = null;
     _drag.animateTo(
       0,
-      duration: Duration(milliseconds: committed ? 360 : 520),
-      curve: committed ? Curves.easeOut : Curves.elasticOut,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : committed
+          ? AppMotion.slow
+          : AppMotion.scene,
+      curve: committed ? AppMotion.ease : AppMotion.spring,
     );
     widget.onExitMode();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: Listenable.merge([_drag, _fly, _hold, _swim, _splash]),
+      builder: (context, _) => _buildAnimated(context),
+    ),
+  );
+
+  Widget _buildAnimated(BuildContext context) {
     final value = _drag.value;
     final reached = value >= _threshold;
     final fill = (value / _trackLength).clamp(0.0, 1.0);
     final holding = _hold.value > 0.01;
     return SizedBox(
       width: widget.railWidth,
-      height: 70,
+      height: Scale.railCell,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Positioned(
-            left: -153,
+            left: -Scale.registrationReach,
             right: 13,
             top: 8,
             height: 48,
@@ -884,14 +894,16 @@ class _DragLikeButtonState extends State<_DragLikeButton>
             ),
           ),
           Positioned(
-            right: 8,
-            top: -4,
+            left: (widget.railWidth - Scale.railIcon) / 2,
+            top: 0,
             child: Transform.translate(
               offset: Offset(-value, 0),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: widget.onLike,
-                onLongPressStart: _onHoldStart,
+                onTap: _tapLike,
+                onLongPressDown: (details) => _onHoldStart(
+                  LongPressStartDetails(localPosition: details.localPosition),
+                ),
                 onLongPressMoveUpdate: _onHoldMove,
                 onLongPressEnd: _onHoldEnd,
                 onLongPressCancel: _onHoldCancel,
@@ -902,88 +914,102 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      width: 58,
-                      height: 58,
-                      child: Transform.rotate(
-                        angle: widget.armed
-                            ? math.sin(_swim.value * math.pi * 4) * 0.06
-                            : 0,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              right: -14,
-                              top: 16,
-                              child: IgnorePointer(
-                                child: Opacity(
-                                  opacity: widget.armed ? 0.25 + 0.75 * fill : 0,
-                                  child: Transform.translate(
-                                    offset: Offset(
-                                      math.sin(_swim.value * math.pi * 2) * 2,
-                                      0,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _Bubble(size: 5, alpha: 0.5),
-                                        const SizedBox(width: 3),
-                                        _Bubble(size: 3.5, alpha: 0.35),
-                                        const SizedBox(width: 3),
-                                        _Bubble(size: 2.5, alpha: 0.25),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                      width: Scale.railIcon,
+                      height: Scale.railIcon,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned.fill(
+                            child: PixelBurst(
+                              animation: _fly,
+                              color: AppColors.dark.accent,
                             ),
-                            AnimatedOpacity(
-                              duration: const Duration(milliseconds: 160),
-                              opacity: holding || widget.armed ? 1 : 0,
-                              child: SizedBox(
-                                width: 58,
-                                height: 58,
-                                child: CircularProgressIndicator(
-                                  value: widget.armed ? 1 : _hold.value,
-                                  strokeWidth: 2,
-                                  strokeCap: StrokeCap.round,
-                                  color: Colors.white,
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            _RoundIconButton(
-                              glyph: FishHeartIcon(
-                                size: 27,
-                                filled: widget.isFavorite,
-                                color: Colors.white,
-                                heartColor: widget.isFavorite
-                                    ? Palette.rose
-                                    : Colors.white,
-                              ),
-                              size: 50,
-                              active: widget.isFavorite,
-                              onTap: _tapLike,
-                            ),
-                            if (_fly.value > 0)
-                              IgnorePointer(
-                                child: Opacity(
-                                  opacity: 1 - _fly.value,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -90 * _fly.value),
-                                    child: FishHeartIcon(
-                                      size: 46,
-                                      filled: true,
-                                      color: Palette.accent,
-                                      heartColor: Colors.white,
+                          ),
+                          Transform.rotate(
+                            angle: widget.armed
+                                ? math.sin(_swim.value * math.pi * 4) * 0.06
+                                : 0,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  right: -14,
+                                  top: 16,
+                                  child: IgnorePointer(
+                                    child: Opacity(
+                                      opacity: widget.armed
+                                          ? 0.25 + 0.75 * fill
+                                          : 0,
+                                      child: Transform.translate(
+                                        offset: Offset(
+                                          math.sin(_swim.value * math.pi * 2) *
+                                              2,
+                                          0,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _Bubble(size: 5, alpha: 0.5),
+                                            const SizedBox(width: 3),
+                                            _Bubble(size: 3.5, alpha: 0.35),
+                                            const SizedBox(width: 3),
+                                            _Bubble(size: 2.5, alpha: 0.25),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 160),
+                                  opacity: holding || widget.armed ? 1 : 0,
+                                  child: SizedBox(
+                                    width: Scale.railIcon,
+                                    height: Scale.railIcon,
+                                    child: CircularProgressIndicator(
+                                      value: widget.armed ? 1 : _hold.value,
+                                      strokeWidth: 2,
+                                      strokeCap: StrokeCap.round,
+                                      color: Colors.white,
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                _RoundIconButton(
+                                  glyph: FishHeartIcon(
+                                    size: 27,
+                                    filled: widget.isFavorite,
+                                    color: Colors.white,
+                                    heartColor: widget.isFavorite
+                                        ? Palette.rose
+                                        : Colors.white,
+                                  ),
+                                  size: 50,
+                                  active: widget.isFavorite,
+                                  onTap: _tapLike,
+                                ),
+                                if (_fly.value > 0)
+                                  IgnorePointer(
+                                    child: Opacity(
+                                      opacity: 1 - _fly.value,
+                                      child: Transform.translate(
+                                        offset: Offset(0, -90 * _fly.value),
+                                        child: FishHeartIcon(
+                                          size: 46,
+                                          filled: true,
+                                          color: Palette.accent,
+                                          heartColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1127,22 +1153,29 @@ class _MediaCarouselState extends State<MediaCarousel> {
         ),
         if (count > 1)
           Positioned(
-            left: 16,
-            bottom: 176,
+            left: Scale.captionInset,
+            top: MediaQuery.paddingOf(context).top + Scale.railCell,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.32),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(
-                '${_page + 1}/$count',
-                style: Fonts.monoStyle(
-                  size: 11,
-                  weight: 500,
-                  letterSpacing: 0,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_page + 1}/$count',
+                    style: Fonts.monoStyle(
+                      size: 11,
+                      weight: 500,
+                      letterSpacing: 0,
+                      color: AppColors.dark.ink,
+                    ),
+                  ),
+                  const SizedBox(width: Scale.railGap),
+                  PixelDotsIndicator(count: count, index: _page),
+                ],
               ),
             ),
           ),
@@ -1244,7 +1277,11 @@ class _Caption extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(FeedVisuals.iconFor(event.category), size: 12, color: Colors.white),
+              Icon(
+                FeedVisuals.iconFor(event.category),
+                size: 12,
+                color: Colors.white,
+              ),
               const SizedBox(width: 5),
               Text(
                 event.category.label.toUpperCase(),
@@ -1270,60 +1307,51 @@ class _Caption extends StatelessWidget {
             color: Colors.white,
           ).withShadows(),
         ),
-      if (organizer != null && organizer!.isNotEmpty) ...[
-        const SizedBox(height: 4),
-        Text(
-          organizer!,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Fonts.sansStyle(
-            size: 13,
-            weight: 500,
-            color: Colors.white.withValues(alpha: 0.82),
-          ),
-        ),
-      ],
-      const SizedBox(height: 8),
-      Row(
-        children: [
-          const Icon(Icons.event_rounded, size: 15, color: Colors.white70),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Fonts.sansStyle(size: 12.5, color: Colors.white70),
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Icon(Icons.place_rounded, size: 15, color: Colors.white70),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              event.place.isEmpty ? 'Место уточняется' : event.place,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Fonts.sansStyle(size: 12.5, color: Colors.white70),
+        if (organizer != null && organizer!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            organizer!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Fonts.sansStyle(
+              size: 13,
+              weight: 500,
+              color: Colors.white.withValues(alpha: 0.82),
             ),
           ),
         ],
-      ),
-      if (event.description.isNotEmpty) ...[
-        const SizedBox(height: 9),
-        Text(
-          event.description,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Fonts.sansStyle(
-            size: 13,
-            height: 1.4,
-            color: Colors.white.withValues(alpha: 0.9),
-          ),
+        const SizedBox(height: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${DateFmt.full(event.startAt)} · ${DateFmt.time(event.startAt)}',
+              style: Fonts.monoStyle(size: 11, color: AppColors.dark.ink2),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              event.place.isEmpty ? 'Место уточняется' : event.place,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Fonts.sansStyle(size: 12.5, color: AppColors.dark.ink2),
+            ),
+          ],
         ),
+        if (event.description.isNotEmpty) ...[
+          const SizedBox(height: 9),
+          Text(
+            event.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Fonts.sansStyle(
+              size: 13,
+              height: 1.4,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+        ],
       ],
-    ],
-  );
+    );
   }
 }
 
@@ -1352,12 +1380,12 @@ class _TopCorners extends ConsumerWidget {
         children: [
           _RoundIconButton(
             icon: Icons.person_rounded,
-            size: 42,
+            size: Scale.railIcon,
             onTap: () => Navigator.of(context).pushNamed('/profile'),
           ),
           _RoundIconButton(
             icon: Icons.search_rounded,
-            size: 42,
+            size: Scale.railIcon,
             onTap: () => Navigator.of(context).pushNamed('/search'),
           ),
         ],
@@ -1448,12 +1476,7 @@ class _ReminderSheet extends StatelessWidget {
   final bool hasReminder;
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      color: Palette.paper,
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      border: Border(top: BorderSide(color: Palette.cardLine)),
-    ),
+  Widget build(BuildContext context) => SingleChildScrollView(
     child: SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -1468,7 +1491,7 @@ class _ReminderSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Выбери, когда прислать напоминание.',
-              style: Fonts.sansStyle(size: 12.5, color: Palette.muted),
+              style: Fonts.sansStyle(size: 12.5, color: context.colors.muted),
             ),
             const SizedBox(height: 12),
             _ReminderOption(
@@ -1527,10 +1550,10 @@ class _ReminderOption extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
+      color: context.colors.wash,
+      borderRadius: BorderRadius.circular(AppRadius.field),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.field),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
@@ -1539,14 +1562,16 @@ class _ReminderOption extends StatelessWidget {
               Icon(
                 icon,
                 size: 18,
-                color: danger ? Palette.rose : Palette.accent,
+                color: danger ? context.colors.rose : context.colors.accent,
               ),
               const SizedBox(width: 12),
-              Text(
-                label,
-                style: Fonts.sansStyle(
-                  size: 14,
-                  color: danger ? Palette.rose : Palette.ink,
+              Expanded(
+                child: Text(
+                  label,
+                  style: Fonts.sansStyle(
+                    size: 14,
+                    color: danger ? context.colors.rose : context.colors.ink,
+                  ),
                 ),
               ),
             ],
@@ -1600,18 +1625,18 @@ class _SharePageState extends ConsumerState<SharePage> {
   Widget build(BuildContext context) {
     final url = widget.url;
     return Scaffold(
-      backgroundColor: Palette.paper,
+      backgroundColor: context.colors.paper,
       appBar: AppBar(
-        backgroundColor: Palette.paper,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: context.colors.paper,
+        surfaceTintColor: context.colors.paper.withValues(alpha: 0),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Palette.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: context.colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Поделиться',
-          style: Fonts.sansStyle(size: 17, weight: 600, color: Palette.ink),
+          style: Fonts.sansStyle(size: 17, weight: 600, color: context.colors.ink),
         ),
       ),
       body: SafeArea(
@@ -1628,7 +1653,7 @@ class _SharePageState extends ConsumerState<SharePage> {
                   style: Fonts.sansStyle(
                     size: 15,
                     weight: 600,
-                    color: Palette.ink2,
+                    color: context.colors.ink2,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1640,24 +1665,24 @@ class _SharePageState extends ConsumerState<SharePage> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.light.paper,
                           borderRadius: BorderRadius.circular(
                             Scale.fieldRadius,
                           ),
-                          border: Border.all(color: Palette.line),
+                          border: Border.all(color: context.colors.line),
                         ),
                         child: QrImageView(
                           data: url,
                           size: 210,
                           version: QrVersions.auto,
-                          backgroundColor: Colors.white,
-                          eyeStyle: const QrEyeStyle(
+                          backgroundColor: AppColors.light.paper,
+                          eyeStyle: QrEyeStyle(
                             eyeShape: QrEyeShape.square,
-                            color: Palette.ink,
+                            color: AppColors.light.ink,
                           ),
-                          dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleStyle: QrDataModuleStyle(
                             dataModuleShape: QrDataModuleShape.square,
-                            color: Palette.ink,
+                            color: AppColors.light.ink,
                           ),
                         ),
                       ),
@@ -1668,7 +1693,7 @@ class _SharePageState extends ConsumerState<SharePage> {
                         style: Fonts.monoStyle(
                           size: 11.5,
                           weight: 400,
-                          color: Palette.accent,
+                          color: context.colors.accent,
                         ),
                       ),
                       const SizedBox(height: 18),
