@@ -14,6 +14,7 @@ import '../shared/fish.dart';
 import '../shared/ocean/ocean_providers.dart';
 import '../shared/glass_sheet.dart';
 import '../shared/kit.dart';
+import '../shared/onboarding.dart';
 import '../shared/pixel.dart';
 import '../shared/theme_controls.dart';
 import 'ticket_card.dart';
@@ -27,6 +28,27 @@ final reminderOfProvider = FutureProvider.family<Reminder?, String>((
   if (user == null) return null;
   return ref.read(repositoryProvider).reminderOf(eventId, user.id);
 });
+
+final fishEnabledProvider = StateNotifierProvider<FishEnabledNotifier, bool>((
+  ref,
+) {
+  return FishEnabledNotifier();
+});
+
+class FishEnabledNotifier extends StateNotifier<bool> {
+  FishEnabledNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await isFishEnabled();
+  }
+
+  Future<void> toggle() async {
+    state = !state;
+    await setFishEnabled(state);
+  }
+}
 
 enum _ReminderAction { oneHour, oneDay, custom, clear }
 
@@ -282,6 +304,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 6),
               ],
+            ),
+          ),
+        ),
+        // Fish toggle
+        Listener(
+          onPointerDown: (event) => _themeOrigin = event.position,
+          child: GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.set_meal_rounded,
+                    size: 20,
+                    color: context.colors.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Рыбы на фоне',
+                          style: Fonts.sansStyle(
+                            size: 14,
+                            weight: 500,
+                            color: context.colors.ink,
+                          ),
+                        ),
+                        Text(
+                          'Анимированные рыбки в океане',
+                          style: Fonts.sansStyle(
+                            size: 11,
+                            color: context.colors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: ref.watch(fishEnabledProvider),
+                    onChanged: (_) => ref.read(fishEnabledProvider.notifier).toggle(),
+                    activeColor: Palette.accent,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

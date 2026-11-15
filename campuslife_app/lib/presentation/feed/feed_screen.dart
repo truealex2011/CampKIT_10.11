@@ -10,11 +10,14 @@ import 'package:share_plus/share_plus.dart';
 import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
+import '../shared/app_icons.dart';
 import '../shared/fish.dart';
 import '../shared/glass_sheet.dart';
 import '../shared/ocean/ocean_providers.dart';
 import '../shared/kit.dart';
+import '../shared/onboarding.dart';
 import '../shared/pixel.dart';
+import 'application_form.dart';
 import 'event_sheet.dart';
 import 'media_pool.dart';
 
@@ -58,6 +61,14 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final MediaPool _pool = MediaPool();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showOnboardingIfNeeded(context);
+    });
+  }
 
   @override
   void dispose() {
@@ -191,16 +202,49 @@ class _EventCardState extends ConsumerState<EventCard> {
       ToastController.show(context, 'Войди, чтобы записаться', error: true);
       return;
     }
+
+    // If already registered, just unregister
+    if (FeedState.isRegistered(event.id)) {
+      try {
+        await ref.read(repositoryProvider).toggleRegistration(event.id, user.id);
+        FeedState.toggle(event.id);
+        ref.read(revisionProvider.notifier).bump();
+        if (mounted) {
+          ToastController.show(context, 'Запись отменена');
+        }
+      } on AppException catch (e) {
+        if (mounted) ToastController.show(context, e.message, error: true);
+      }
+      return;
+    }
+
+    // Show application form if event has fields
+    if (event.fields.isNotEmpty) {
+      final submitted = await ApplicationForm.show(
+        context,
+        event: event,
+        onSubmit: (answers) async {
+          await ref.read(repositoryProvider).submitApplication(
+            event.id,
+            user.id,
+            answers,
+          );
+        },
+      );
+      if (submitted && mounted) {
+        FeedState.toggle(event.id);
+        ref.read(revisionProvider.notifier).bump();
+      }
+      return;
+    }
+
+    // No fields - direct registration
     try {
       await ref.read(repositoryProvider).toggleRegistration(event.id, user.id);
       FeedState.toggle(event.id);
       ref.read(revisionProvider.notifier).bump();
-      final nowRegistered = FeedState.isRegistered(event.id);
       if (mounted) {
-        ToastController.show(
-          context,
-          nowRegistered ? 'Ты записан(а) на событие' : 'Запись отменена',
-        );
+        ToastController.show(context, 'Ты записан(а) на событие');
       }
     } on AppException catch (e) {
       if (mounted) ToastController.show(context, e.message, error: true);
@@ -424,9 +468,7 @@ class _RightRail extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _RailButton(
-          icon: hasReminder
-              ? Icons.notifications_active_rounded
-              : Icons.notifications_none_rounded,
+          iconPath: AppIcons.reminderLight,
           label: 'Напомнить',
           active: hasReminder,
           onTap: onReminder,
@@ -453,19 +495,19 @@ class _RightRail extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _RailButton(
-                  icon: Icons.article_outlined,
+                  iconPath: AppIcons.descriptionLight,
                   label: 'Описание',
                   onTap: onDescription,
                 ),
                 const SizedBox(height: _railGap),
                 _RailButton(
-                  icon: Icons.share_outlined,
+                  iconPath: AppIcons.shareLight,
                   label: 'Поделиться',
                   onTap: onShare,
                 ),
                 const SizedBox(height: _railGap),
                 _RailButton(
-                  icon: Icons.flag_outlined,
+                  iconPath: AppIcons.reportLight,
                   label: 'Жалоба',
                   onTap: onReport,
                 ),
@@ -482,13 +524,15 @@ const double _railGap = Scale.railGap;
 
 class _RailButton extends StatelessWidget {
   const _RailButton({
-    required this.icon,
+    this.icon,
     required this.label,
     required this.onTap,
     this.active = false,
+    this.iconPath,
   });
 
-  final IconData icon;
+  final IconData? icon;
+  final String? iconPath;
   final String label;
   final VoidCallback onTap;
   final bool active;
@@ -501,7 +545,13 @@ class _RailButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _RoundIconButton(icon: icon, size: 50, active: active, onTap: onTap),
+        _RoundIconButton(
+          icon: icon,
+          iconPath: iconPath,
+          size: 50,
+          active: active,
+          onTap: onTap,
+        ),
         const SizedBox(height: 5),
         Text(
           label.toUpperCase(),
@@ -522,6 +572,7 @@ class _RailButton extends StatelessWidget {
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({
     this.icon,
+    this.iconPath,
     this.glyph,
     required this.onTap,
     this.size = 48,
@@ -529,6 +580,7 @@ class _RoundIconButton extends StatelessWidget {
   });
 
   final IconData? icon;
+  final String? iconPath;
   final Widget? glyph;
   final VoidCallback? onTap;
   final double size;
@@ -555,15 +607,24 @@ class _RoundIconButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Center(
-            child:
-                glyph ??
-                Icon(
-                  icon,
-                  size: size * 0.46,
-                  color: active
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.92),
-                ),
+            child: glyph ??
+                (iconPath != null
+                    ? Image.asset(
+                        iconPath!,
+                        width: size * 0.46,
+                        height: size * 0.46,
+                        color: active
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.92),
+                        colorBlendMode: BlendMode.srcIn,
+                      )
+                    : Icon(
+                        icon,
+                        size: size * 0.46,
+                        color: active
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.92),
+                      )),
           ),
         ),
       ),

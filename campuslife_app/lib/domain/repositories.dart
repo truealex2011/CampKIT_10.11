@@ -52,6 +52,12 @@ abstract interface class FeedRepository {
 
   Future<bool> toggleRegistration(String eventId, String userId);
 
+  Future<void> submitApplication(
+    String eventId,
+    String userId,
+    Map<String, String> answers,
+  );
+
   Future<List<CampusEvent>> favorites(String userId);
 
   Future<List<TicketBundle>> myTickets(String userId);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../onboarding.dart';
 import 'ocean_view.dart';
 import 'types.dart';
 import 'world.dart';
@@ -44,17 +45,23 @@ class OceanBackdrop extends ConsumerWidget {
   final double veil;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => IgnorePointer(
-    child: RepaintBoundary(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          OceanView(scene: ref.watch(ambientOceanProvider)),
-          _Veil(paper: context.colors.paper, factor: veil),
-        ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fishEnabled = ref.watch(fishEnabledProvider);
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (fishEnabled)
+              OceanView(scene: ref.watch(ambientOceanProvider))
+            else
+              Container(color: Palette.ink),
+            _Veil(paper: context.colors.paper, factor: veil),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Veil extends StatelessWidget {
