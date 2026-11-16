@@ -100,6 +100,7 @@ class EventCustomFields extends Table {
   TextColumn get value => text().withDefault(const Constant(''))();
   TextColumn get options => text().withDefault(const Constant('[]'))();
   IntColumn get position => integer().withDefault(const Constant(0))();
+  BoolColumn get required => boolean().withDefault(const Constant(true))();
 
   @override
   Set<Column> get primaryKey => {id};

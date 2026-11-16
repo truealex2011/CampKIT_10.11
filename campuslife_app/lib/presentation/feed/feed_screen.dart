@@ -203,18 +203,8 @@ class _EventCardState extends ConsumerState<EventCard> {
       return;
     }
 
-    // If already registered, just unregister
     if (FeedState.isRegistered(event.id)) {
-      try {
-        await ref.read(repositoryProvider).toggleRegistration(event.id, user.id);
-        FeedState.toggle(event.id);
-        ref.read(revisionProvider.notifier).bump();
-        if (mounted) {
-          ToastController.show(context, 'Запись отменена');
-        }
-      } on AppException catch (e) {
-        if (mounted) ToastController.show(context, e.message, error: true);
-      }
+      ToastController.show(context, 'Заявка уже отправлена');
       return;
     }
 
@@ -238,16 +228,16 @@ class _EventCardState extends ConsumerState<EventCard> {
       return;
     }
 
-    // No fields - direct registration
-    try {
-      await ref.read(repositoryProvider).toggleRegistration(event.id, user.id);
+    final submitted = await ApplicationForm.show(
+      context,
+      event: event,
+      onSubmit: (answers) => ref
+          .read(repositoryProvider)
+          .submitApplication(event.id, user.id, answers),
+    );
+    if (submitted && mounted) {
       FeedState.toggle(event.id);
       ref.read(revisionProvider.notifier).bump();
-      if (mounted) {
-        ToastController.show(context, 'Ты записан(а) на событие');
-      }
-    } on AppException catch (e) {
-      if (mounted) ToastController.show(context, e.message, error: true);
     }
   }
 

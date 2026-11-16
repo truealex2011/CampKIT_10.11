@@ -17,7 +17,7 @@ final _boundaryKey = GlobalKey();
 void main() {
   const dir = 'build/test_shots';
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() => SharedPreferences.setMockInitialValues({'onboarding_completed': true}));
 
   setUpAll(() {
     Directory(dir).createSync(recursive: true);

@@ -178,6 +178,12 @@ final organizerEventsProvider =
       return ref.watch(repositoryProvider).eventsOf(orgId);
     });
 
+final eventApplicationsProvider =
+    FutureProvider.family<List<EventApplication>, String>((ref, eventId) async {
+      ref.watch(revisionProvider);
+      return ref.watch(repositoryProvider).applicationsOf(eventId);
+    });
+
 final organizerOrgsProvider = FutureProvider<List<Organization>>((ref) async {
   ref.watch(revisionProvider);
   final user = ref.watch(sessionProvider);

@@ -353,6 +353,69 @@ class LocalRepository implements CampusLifeRepository {
   }
 
   @override
+  Future<void> submitApplication(
+    String eventId,
+    String userId,
+    Map<String, String> answers,
+  ) async {
+    final event = await eventById(eventId);
+    if (event == null) {
+      throw const AppException('event', 'Событие не найдено');
+    }
+    for (final field in event.fields) {
+      final answer = answers[field.id]?.trim() ?? '';
+      if (field.required && answer.isEmpty) {
+        throw AppException('required_field', 'Заполни обязательное поле: ${field.label}');
+      }
+      if (answer.isNotEmpty && field.type == FieldType.choice && !field.options.contains(answer)) {
+        throw AppException('invalid_answer', 'Выбери один из вариантов для поля «${field.label}»');
+      }
+    }
+    await _db.transaction(() async {
+      if (event.fields.isEmpty) {
+        await _insertRegistration(eventId, userId);
+        return;
+      }
+      throw const AppException(
+        'application_unavailable',
+        'Отправка заявок доступна после подключения к серверу',
+      );
+    });
+  }
+
+  Future<void> _insertRegistration(String eventId, String userId) async {
+    final event = await eventById(eventId);
+    if (event == null) throw const AppException('event', 'Событие не найдено');
+    if (event.status == EventStatus.cancelled) {
+      throw const AppException('event', 'Событие отменено организатором');
+    }
+    if (event.capacity > 0) {
+      final current = await (_db.select(
+        _db.registrations,
+      )..where((t) => t.eventId.equals(eventId))).get();
+      if (current.length >= event.capacity) {
+        throw const AppException('capacity', 'Свободных мест не осталось');
+      }
+    }
+    await _db.into(_db.registrations).insert(
+      RegistrationsCompanion.insert(
+        id: newId('reg'),
+        eventId: eventId,
+        userId: userId,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Future<List<EventApplication>> applicationsOf(String eventId) async => const [];
+
+  @override
+  Future<void> resolveApplication(String applicationId, bool approve) async {
+    throw const AppException('application_unavailable', 'Заявки доступны через сервер');
+  }
+
+  @override
   Future<List<CampusEvent>> favorites(String userId) async {
     final rows =
         await (_db.select(_db.favorites)
@@ -702,6 +765,7 @@ class LocalRepository implements CampusLifeRepository {
               value: Value(field.value),
               options: Value(encodeOptions(field.options)),
               position: Value(i),
+              required: Value(field.required),
             ),
           );
     }

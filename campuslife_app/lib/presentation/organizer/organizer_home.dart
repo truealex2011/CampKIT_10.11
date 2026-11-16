@@ -23,7 +23,7 @@ class OrganizerHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
-  static const _sections = ['События', 'Заявки', 'Статистика'];
+  static const _sections = ['События', 'Анкеты', 'Команда', 'Статистика'];
 
   int _tab = 0;
   int _orgIndex = 0;
@@ -153,7 +153,8 @@ class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
       ),
       body: switch (_tab) {
         0 => _EventsTab(orgId: org.id),
-        1 => _RequestsTab(orgId: org.id),
+        1 => _ApplicationsTab(orgId: org.id),
+        2 => _RequestsTab(orgId: org.id),
         _ => StatsView(orgId: org.id),
       },
       onCreate: () => Navigator.of(
@@ -431,6 +432,119 @@ class _RegistrationsLine extends ConsumerWidget {
           style: Fonts.sansStyle(size: 12, color: Palette.muted),
         ),
       };
+}
+
+class _ApplicationsTab extends ConsumerWidget {
+  const _ApplicationsTab({required this.orgId});
+
+  final String orgId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final events = ref.watch(organizerEventsProvider(orgId));
+    return switch (events) {
+      AsyncData(:final value) when value.isEmpty => const EmptyPlate(
+        lead: 'Событий пока нет.',
+        text: 'Заявки появятся после публикации события и отправки анкеты.',
+      ),
+      AsyncData(:final value) => ListView(
+        children: [
+          for (final event in value)
+            _EventApplicationsSection(event: event),
+        ],
+      ),
+      AsyncError() => const EmptyPlate(
+        lead: 'Сбой.',
+        text: 'Не удалось загрузить заявки.',
+      ),
+      _ => const Center(child: FishLoader(size: 40)),
+    };
+  }
+}
+
+class _EventApplicationsSection extends ConsumerWidget {
+  const _EventApplicationsSection({required this.event});
+
+  final CampusEvent event;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final applications = ref.watch(eventApplicationsProvider(event.id));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: switch (applications) {
+        AsyncData(:final value) when value.isEmpty => const SizedBox.shrink(),
+        AsyncData(:final value) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                event.title,
+                style: Fonts.sansStyle(size: 15, weight: 700),
+              ),
+            ),
+            for (final application in value)
+              _ApplicationCard(application: application, event: event),
+          ],
+        ),
+        AsyncError() => const SizedBox.shrink(),
+        _ => const Padding(
+          padding: EdgeInsets.all(12),
+          child: Center(child: FishLoader(size: 28)),
+        ),
+      },
+    );
+  }
+}
+
+class _ApplicationCard extends ConsumerWidget {
+  const _ApplicationCard({required this.application, required this.event});
+
+  final EventApplication application;
+  final CampusEvent event;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(application.applicantName, style: Fonts.sansStyle(size: 14, weight: 700)),
+          Text(application.applicantEmail, style: Fonts.sansStyle(size: 12, color: Palette.muted)),
+          const SizedBox(height: 8),
+          for (final field in event.fields)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Text(
+                '${field.label}: ${application.answers[field.id] ?? '—'}',
+                style: Fonts.sansStyle(size: 12.5, color: Palette.ink2),
+              ),
+            ),
+          Text('Статус: ${application.status}', style: Fonts.sansStyle(size: 11, color: Palette.muted)),
+          if (application.status == 'pending') ...[
+            const SizedBox(height: 8),
+            Row(
+              children: GhostButton.pair(
+                GhostButton(label: 'Одобрить', onPressed: () => _resolve(context, ref, true)),
+                GhostButton(label: 'Отклонить', onPressed: () => _resolve(context, ref, false)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _resolve(BuildContext context, WidgetRef ref, bool approve) async {
+    try {
+      await ref.read(repositoryProvider).resolveApplication(application.id, approve);
+      ref.read(revisionProvider.notifier).bump();
+    } on AppException catch (error) {
+      if (context.mounted) ToastController.show(context, error.message, error: true);
+    }
+  }
 }
 
 class _RequestsTab extends ConsumerWidget {

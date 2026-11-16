@@ -17,7 +17,7 @@ void main() {
     WidgetTester tester,
     double width,
   ) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

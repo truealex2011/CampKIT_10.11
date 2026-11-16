@@ -3071,6 +3071,21 @@ class $EventCustomFieldsTable extends EventCustomFields
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _requiredMeta = const VerificationMeta(
+    'required',
+  );
+  @override
+  late final GeneratedColumn<bool> required = GeneratedColumn<bool>(
+    'required',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("required" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3080,6 +3095,7 @@ class $EventCustomFieldsTable extends EventCustomFields
     value,
     options,
     position,
+    required,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3140,6 +3156,12 @@ class $EventCustomFieldsTable extends EventCustomFields
         position.isAcceptableOrUnknown(data['position']!, _positionMeta),
       );
     }
+    if (data.containsKey('required')) {
+      context.handle(
+        _requiredMeta,
+        required.isAcceptableOrUnknown(data['required']!, _requiredMeta),
+      );
+    }
     return context;
   }
 
@@ -3177,6 +3199,10 @@ class $EventCustomFieldsTable extends EventCustomFields
         DriftSqlType.int,
         data['${effectivePrefix}position'],
       )!,
+      required: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}required'],
+      )!,
     );
   }
 
@@ -3194,6 +3220,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
   final String value;
   final String options;
   final int position;
+  final bool required;
   const CustomFieldRow({
     required this.id,
     required this.eventId,
@@ -3202,6 +3229,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
     required this.value,
     required this.options,
     required this.position,
+    required this.required,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3213,6 +3241,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
     map['value'] = Variable<String>(value);
     map['options'] = Variable<String>(options);
     map['position'] = Variable<int>(position);
+    map['required'] = Variable<bool>(required);
     return map;
   }
 
@@ -3225,6 +3254,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
       value: Value(value),
       options: Value(options),
       position: Value(position),
+      required: Value(required),
     );
   }
 
@@ -3241,6 +3271,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
       value: serializer.fromJson<String>(json['value']),
       options: serializer.fromJson<String>(json['options']),
       position: serializer.fromJson<int>(json['position']),
+      required: serializer.fromJson<bool>(json['required']),
     );
   }
   @override
@@ -3254,6 +3285,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
       'value': serializer.toJson<String>(value),
       'options': serializer.toJson<String>(options),
       'position': serializer.toJson<int>(position),
+      'required': serializer.toJson<bool>(required),
     };
   }
 
@@ -3265,6 +3297,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
     String? value,
     String? options,
     int? position,
+    bool? required,
   }) => CustomFieldRow(
     id: id ?? this.id,
     eventId: eventId ?? this.eventId,
@@ -3273,6 +3306,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
     value: value ?? this.value,
     options: options ?? this.options,
     position: position ?? this.position,
+    required: required ?? this.required,
   );
   CustomFieldRow copyWithCompanion(EventCustomFieldsCompanion data) {
     return CustomFieldRow(
@@ -3283,6 +3317,7 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
       value: data.value.present ? data.value.value : this.value,
       options: data.options.present ? data.options.value : this.options,
       position: data.position.present ? data.position.value : this.position,
+      required: data.required.present ? data.required.value : this.required,
     );
   }
 
@@ -3295,14 +3330,15 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
           ..write('type: $type, ')
           ..write('value: $value, ')
           ..write('options: $options, ')
-          ..write('position: $position')
+          ..write('position: $position, ')
+          ..write('required: $required')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, eventId, label, type, value, options, position);
+      Object.hash(id, eventId, label, type, value, options, position, required);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3313,7 +3349,8 @@ class CustomFieldRow extends DataClass implements Insertable<CustomFieldRow> {
           other.type == this.type &&
           other.value == this.value &&
           other.options == this.options &&
-          other.position == this.position);
+          other.position == this.position &&
+          other.required == this.required);
 }
 
 class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
@@ -3324,6 +3361,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
   final Value<String> value;
   final Value<String> options;
   final Value<int> position;
+  final Value<bool> required;
   final Value<int> rowid;
   const EventCustomFieldsCompanion({
     this.id = const Value.absent(),
@@ -3333,6 +3371,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
     this.value = const Value.absent(),
     this.options = const Value.absent(),
     this.position = const Value.absent(),
+    this.required = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EventCustomFieldsCompanion.insert({
@@ -3343,6 +3382,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
     this.value = const Value.absent(),
     this.options = const Value.absent(),
     this.position = const Value.absent(),
+    this.required = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        eventId = Value(eventId),
@@ -3356,6 +3396,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
     Expression<String>? value,
     Expression<String>? options,
     Expression<int>? position,
+    Expression<bool>? required,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3366,6 +3407,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
       if (value != null) 'value': value,
       if (options != null) 'options': options,
       if (position != null) 'position': position,
+      if (required != null) 'required': required,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3378,6 +3420,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
     Value<String>? value,
     Value<String>? options,
     Value<int>? position,
+    Value<bool>? required,
     Value<int>? rowid,
   }) {
     return EventCustomFieldsCompanion(
@@ -3388,6 +3431,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
       value: value ?? this.value,
       options: options ?? this.options,
       position: position ?? this.position,
+      required: required ?? this.required,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3416,6 +3460,9 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (required.present) {
+      map['required'] = Variable<bool>(required.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3432,6 +3479,7 @@ class EventCustomFieldsCompanion extends UpdateCompanion<CustomFieldRow> {
           ..write('value: $value, ')
           ..write('options: $options, ')
           ..write('position: $position, ')
+          ..write('required: $required, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6822,6 +6870,7 @@ typedef $$EventCustomFieldsTableCreateCompanionBuilder =
       Value<String> value,
       Value<String> options,
       Value<int> position,
+      Value<bool> required,
       Value<int> rowid,
     });
 typedef $$EventCustomFieldsTableUpdateCompanionBuilder =
@@ -6833,6 +6882,7 @@ typedef $$EventCustomFieldsTableUpdateCompanionBuilder =
       Value<String> value,
       Value<String> options,
       Value<int> position,
+      Value<bool> required,
       Value<int> rowid,
     });
 
@@ -6877,6 +6927,11 @@ class $$EventCustomFieldsTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
     column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get required => $composableBuilder(
+    column: $table.required,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6924,6 +6979,11 @@ class $$EventCustomFieldsTableOrderingComposer
     column: $table.position,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get required => $composableBuilder(
+    column: $table.required,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EventCustomFieldsTableAnnotationComposer
@@ -6955,6 +7015,9 @@ class $$EventCustomFieldsTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<bool> get required =>
+      $composableBuilder(column: $table.required, builder: (column) => column);
 }
 
 class $$EventCustomFieldsTableTableManager
@@ -7004,6 +7067,7 @@ class $$EventCustomFieldsTableTableManager
                 Value<String> value = const Value.absent(),
                 Value<String> options = const Value.absent(),
                 Value<int> position = const Value.absent(),
+                Value<bool> required = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventCustomFieldsCompanion(
                 id: id,
@@ -7013,6 +7077,7 @@ class $$EventCustomFieldsTableTableManager
                 value: value,
                 options: options,
                 position: position,
+                required: required,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7024,6 +7089,7 @@ class $$EventCustomFieldsTableTableManager
                 Value<String> value = const Value.absent(),
                 Value<String> options = const Value.absent(),
                 Value<int> position = const Value.absent(),
+                Value<bool> required = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventCustomFieldsCompanion.insert(
                 id: id,
@@ -7033,6 +7099,7 @@ class $$EventCustomFieldsTableTableManager
                 value: value,
                 options: options,
                 position: position,
+                required: required,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

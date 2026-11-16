@@ -58,6 +58,10 @@ abstract interface class FeedRepository {
     Map<String, String> answers,
   );
 
+  Future<List<EventApplication>> applicationsOf(String eventId);
+
+  Future<void> resolveApplication(String applicationId, bool approve);
+
   Future<List<CampusEvent>> favorites(String userId);
 
   Future<List<TicketBundle>> myTickets(String userId);

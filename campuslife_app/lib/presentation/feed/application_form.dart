@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
-import '../shared/glass_sheet.dart';
+import 'media_pool.dart';
+import '../entry/entry_widgets.dart' show GlassSelect;
 import '../shared/kit.dart';
 
 /// A form that collects answers to event fields for registration.
@@ -200,6 +201,26 @@ class _FieldInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = field.required ? '${field.label} *' : field.label;
+    if (field.type == FieldType.choice) {
+      return GlassSelect(
+        label: label,
+        value: controller.text.isEmpty ? null : controller.text,
+        items: field.options,
+        icon: _iconForType(field.type),
+        placeholder: 'Выбери вариант',
+        onChanged: (value) => controller.text = value ?? '',
+      );
+    }
+    if (field.type == FieldType.yesNo) {
+      return GlassSelect(
+        label: label,
+        value: controller.text.isEmpty ? null : controller.text,
+        items: const ['Да', 'Нет'],
+        icon: _iconForType(field.type),
+        placeholder: 'Выбери ответ',
+        onChanged: (value) => controller.text = value ?? '',
+      );
+    }
     return GlassField(
       label: label,
       controller: controller,
@@ -208,6 +229,8 @@ class _FieldInput extends StatelessWidget {
       maxLines: field.type == FieldType.text ? 3 : 1,
       keyboardType: field.type == FieldType.number
           ? TextInputType.number
+          : field.type == FieldType.url
+          ? TextInputType.url
           : TextInputType.text,
     );
   }

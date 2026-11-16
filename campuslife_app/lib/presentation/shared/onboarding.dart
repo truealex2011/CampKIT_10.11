@@ -160,9 +160,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       // Progress dots
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -203,7 +207,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                       if (step.task != null) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -220,9 +224,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   : Palette.accent.withValues(alpha: 0.5),
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
+                           child: Row(
+                             children: [
                               Icon(
                                 _taskCompleted
                                     ? Icons.check_circle_rounded
@@ -233,16 +236,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     : Palette.accent,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                _taskCompleted ? 'Выполнено!' : step.task!,
-                                style: Fonts.sansStyle(
-                                  size: 12.5,
-                                  weight: _taskCompleted ? 600 : 400,
-                                  color: _taskCompleted
-                                      ? Palette.mint
-                                      : Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
+                               Expanded(
+                                 child: Text(
+                                   _taskCompleted ? 'Выполнено!' : step.task!,
+                                   style: Fonts.sansStyle(
+                                     size: 12.5,
+                                     weight: _taskCompleted ? 600 : 400,
+                                     color: _taskCompleted
+                                         ? Palette.mint
+                                         : Colors.white.withValues(alpha: 0.9),
+                                   ),
+                                 ),
+                               ),
                             ],
                           ),
                         ),
@@ -274,7 +279,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ],
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -290,9 +296,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       children: [
         // Mock event card
         Center(
-          child: Container(
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
+           child: Container(
+             margin: const EdgeInsets.all(20),
+             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
@@ -301,25 +307,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.event_rounded,
-                  size: 48,
+                 Icon(
+                   Icons.event_rounded,
+                   size: 36,
                   color: Colors.white.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Пример события',
-                  style: Fonts.sansStyle(
-                    size: 18,
+                 Text(
+                   'Пример события',
+                   textAlign: TextAlign.center,
+                   style: Fonts.sansStyle(
+                     size: 16,
                     weight: 600,
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Это демонстрационный экран',
-                  style: Fonts.sansStyle(
-                    size: 13,
+                 const SizedBox(height: 4),
+                 Text(
+                   'Это демонстрационный экран',
+                   textAlign: TextAlign.center,
+                   style: Fonts.sansStyle(
+                     size: 12,
                     color: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),

@@ -112,6 +112,7 @@ extension CustomFieldRowMapper on CustomFieldRow {
     value: value,
     options: decodeOptions(options),
     position: position,
+    required: required,
   );
 }
 

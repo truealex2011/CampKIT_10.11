@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
-import '../onboarding.dart';
+import '../../profile/profile_screen.dart' show fishEnabledProvider;
 import 'ocean_view.dart';
 import 'types.dart';
 import 'world.dart';

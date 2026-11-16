@@ -29,15 +29,15 @@ final reminderOfProvider = FutureProvider.family<Reminder?, String>((
   return ref.read(repositoryProvider).reminderOf(eventId, user.id);
 });
 
-final fishEnabledProvider = StateNotifierProvider<FishEnabledNotifier, bool>((
-  ref,
-) {
-  return FishEnabledNotifier();
-});
+final fishEnabledProvider = NotifierProvider<FishEnabledNotifier, bool>(
+  FishEnabledNotifier.new,
+);
 
-class FishEnabledNotifier extends StateNotifier<bool> {
-  FishEnabledNotifier() : super(true) {
+class FishEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() {
     _load();
+    return true;
   }
 
   Future<void> _load() async {

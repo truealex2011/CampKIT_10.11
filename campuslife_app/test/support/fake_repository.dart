@@ -416,6 +416,35 @@ class FakeCampusLifeRepository implements CampusLifeRepository {
   }
 
   @override
+  Future<void> submitApplication(
+    String eventId,
+    String userId,
+    Map<String, String> answers,
+  ) async {
+    final event = await _must(eventId);
+    for (final field in event.fields) {
+      final value = answers[field.id]?.trim() ?? '';
+      if (field.required && value.isEmpty) {
+        throw AppException('required_field', 'Заполни обязательное поле: ${field.label}');
+      }
+      if (field.type == FieldType.choice && value.isNotEmpty && !field.options.contains(value)) {
+        throw AppException('invalid_answer', 'Выбери допустимый вариант для поля «${field.label}»');
+      }
+    }
+    if (event.fields.isEmpty) {
+      await toggleRegistration(eventId, userId);
+      return;
+    }
+    throw const AppException('application', 'Заявки доступны только через сервер');
+  }
+
+  @override
+  Future<List<EventApplication>> applicationsOf(String eventId) async => const [];
+
+  @override
+  Future<void> resolveApplication(String applicationId, bool approve) async {}
+
+  @override
   Future<List<CampusEvent>> favorites(String userId) async {
     final ids = favs.where((f) => f.userId == userId).map((f) => f.eventId);
     return _sorted([

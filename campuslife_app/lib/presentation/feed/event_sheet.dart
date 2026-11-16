@@ -7,6 +7,7 @@ import '../../domain/entities.dart';
 import '../shared/fish.dart';
 import '../shared/glass_sheet.dart';
 import '../shared/kit.dart';
+import 'application_form.dart';
 import 'media_pool.dart';
 
 final organizationOfProvider = FutureProvider.family<Organization?, String>((
@@ -53,8 +54,20 @@ class _EventSheetState extends ConsumerState<EventSheet> {
     if (user == null) return;
     setState(() => _busy = true);
     try {
-      await ref.read(repositoryProvider).toggleRegistration(event.id, user.id);
-      FeedState.toggle(event.id);
+      if (FeedState.isRegistered(event.id)) {
+        ToastController.show(context, 'Заявка уже отправлена');
+        return;
+      } else {
+        final submitted = await ApplicationForm.show(
+          context,
+          event: event,
+          onSubmit: (answers) => ref
+              .read(repositoryProvider)
+              .submitApplication(event.id, user.id, answers),
+        );
+        if (!submitted || !mounted) return;
+        FeedState.set(event.id, true);
+      }
       ref.read(revisionProvider.notifier).bump();
     } on AppException catch (e) {
       if (mounted) ToastController.show(context, e.message, error: true);

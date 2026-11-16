@@ -218,6 +218,7 @@ class CustomField {
     this.value = '',
     this.options = const [],
     this.position = 0,
+    this.required = true,
   });
 
   final String id;
@@ -227,6 +228,7 @@ class CustomField {
   final String value;
   final List<String> options;
   final int position;
+  final bool required;
 
   CustomField move(int to) => CustomField(
     id: id,
@@ -236,6 +238,7 @@ class CustomField {
     value: value,
     options: options,
     position: to,
+    required: required,
   );
 }
 
@@ -307,6 +310,28 @@ class CampusEvent {
     fields: fields ?? this.fields,
     cancelledAt: cancelledAt ?? this.cancelledAt,
   );
+}
+
+class EventApplication {
+  const EventApplication({
+    required this.id,
+    required this.eventId,
+    required this.userId,
+    required this.applicantName,
+    required this.applicantEmail,
+    required this.answers,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String eventId;
+  final String userId;
+  final String applicantName;
+  final String applicantEmail;
+  final Map<String, String> answers;
+  final String status;
+  final DateTime createdAt;
 }
 
 class Registration {

@@ -558,14 +558,24 @@ class _EventWizardState extends ConsumerState<EventWizard> {
                 onChanged: (value) =>
                     setState(() => draft.type = _typeByLabel(value)),
               ),
-              if (draft.type == FieldType.choice)
-                GlassField(
-                  label: 'Варианты через запятую',
-                  controller: draft.optionsCtrl,
-                  hint: '10 класс, 11 класс',
-                  icon: Icons.list_alt_rounded,
-                  onChanged: (_) => setState(() {}),
-                ),
+               if (draft.type == FieldType.choice)
+                 GlassField(
+                   label: 'Варианты через запятую',
+                   controller: draft.optionsCtrl,
+                   hint: '10 класс, 11 класс',
+                   icon: Icons.list_alt_rounded,
+                   onChanged: (_) => setState(() {}),
+                 ),
+               SwitchListTile.adaptive(
+                 contentPadding: EdgeInsets.zero,
+                 title: Text(
+                   'Обязательный вопрос',
+                   style: Fonts.sansStyle(size: 12.5, color: Palette.ink2),
+                 ),
+                 value: draft.required,
+                 onChanged: (value) => setState(() => draft.required = value),
+               ),
+
             ],
           ),
         ),
@@ -1011,17 +1021,18 @@ class _FieldDraft {
   }
 
   _FieldDraft.fromField(CustomField field)
-    : this(
-        id: field.id,
-        label: field.label,
-        type: field.type,
-        options: field.options.join(', '),
-      );
+    : id = field.id,
+      type = field.type,
+      required = field.required {
+    labelCtrl.text = field.label;
+    optionsCtrl.text = field.options.join(', ');
+  }
 
   final String id;
   final TextEditingController labelCtrl = TextEditingController();
   final TextEditingController optionsCtrl = TextEditingController();
   FieldType type;
+  bool required = true;
 
   void dispose() {
     labelCtrl.dispose();
@@ -1035,6 +1046,7 @@ class _FieldDraft {
     type: type,
     options: _split(optionsCtrl.text),
     position: position,
+    required: required,
   );
 
   static List<String> _split(String raw) => [
