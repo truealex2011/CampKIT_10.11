@@ -2,6 +2,7 @@ import 'package:campuslife_app/app/di.dart';
 import 'package:campuslife_app/app/theme.dart';
 import 'package:campuslife_app/domain/entities.dart';
 import 'package:campuslife_app/presentation/feed/feed_screen.dart';
+import 'package:campuslife_app/presentation/shared/app_icons.dart';
 import 'package:campuslife_app/presentation/shared/fish.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_repository.dart';
+
+Finder railIcon(String asset) => find.byWidgetPredicate(
+  (w) =>
+      w is Image &&
+      w.image is AssetImage &&
+      (w.image as AssetImage).assetName == asset,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,13 +59,13 @@ void main() {
     ) async {
       await boot(tester, width);
       final icons = [
-        Icons.notifications_none_rounded,
-        Icons.article_outlined,
-        Icons.share_outlined,
-        Icons.flag_outlined,
+        AppIcons.reminderLight,
+        AppIcons.descriptionLight,
+        AppIcons.shareLight,
+        AppIcons.reportLight,
       ];
       final centers = icons
-          .map((icon) => tester.getCenter(find.byIcon(icon).first).dx)
+          .map((icon) => tester.getCenter(railIcon(icon).first).dx)
           .toList();
       final heart = tester.getCenter(find.byType(FishHeartIcon).first).dx;
       for (final x in centers) {
@@ -74,8 +82,8 @@ void main() {
     await boot(tester, 320);
     tester.view.physicalSize = const Size(320, 480);
     await tester.pump();
-    final top = tester.getRect(find.byIcon(Icons.notifications_none_rounded).first);
-    final bottom = tester.getRect(find.byIcon(Icons.flag_outlined).first);
+    final top = tester.getRect(railIcon(AppIcons.reminderLight).first);
+    final bottom = tester.getRect(railIcon(AppIcons.reportLight).first);
     expect(top.top, greaterThanOrEqualTo(0));
     expect(bottom.bottom, lessThanOrEqualTo(480));
     expect(tester.takeException(), isNull);

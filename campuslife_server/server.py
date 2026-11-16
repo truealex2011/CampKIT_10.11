@@ -230,7 +230,7 @@ class CampusLifeService:
             raise ApiError(400, "invalid_request", "fields must be an array of at most 10 items")
         if not isinstance(media, list):
             raise ApiError(400, "invalid_request", "media must be an array")
-        status = str(data.get("status", "draft"))
+        status = str(data.get("status", "published"))
         if status not in ("draft", "pendingReview", "published", "rejected", "cancelled"):
             raise ApiError(400, "invalid_status", "Invalid event status")
         return title, start_at, place, category, capacity, str(data.get("description", "")), status, fields, media
@@ -253,35 +253,6 @@ class CampusLifeService:
         cursor = db.execute("UPDATE media SET event_id=?,position=? WHERE id=? AND event_id=?", (event_id, position, item["id"], event_id))
         if cursor.rowcount == 0:
             raise ApiError(400, "invalid_media", "Uploaded media does not belong to this event")
-
-    def update_event(self, user, event_id, data):
-        with self.connect() as db:
-            row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
-        if row is None:
-            raise ApiError(404, "not_found", "Event not found")
-        self.require_organizer(user, row["org_id"])
-        title, start_at, place, category, capacity, description, status, fields, media = self._event_values(data)
-        with self.connect() as db:
-            db.execute("UPDATE events SET title=?,description=?,category=?,start_at=?,place=?,capacity=?,status=? WHERE id=?", (title, description, category, start_at, place, capacity, status, event_id))
-            db.execute("DELETE FROM fields WHERE event_id=?", (event_id,))
-            for position, field in enumerate(fields):
-                self.insert_field(db, event_id, field, position)
-            existing = {item["id"] for item in db.execute("SELECT id FROM media WHERE event_id=?", (event_id,))}
-            requested = set()
-            for position, item in enumerate(media):
-                if not isinstance(item, dict) or not isinstance(item.get("id"), str):
-                    raise ApiError(400, "invalid_media", "Each media item must have an uploaded media id")
-                requested.add(item["id"])
-                if item["id"] in existing:
-                    db.execute("UPDATE media SET position=? WHERE id=? AND event_id=?", (position, item["id"], event_id))
-                else:
-                    self.attach_existing_media(db, event_id, item, position)
-            removed = existing - requested
-            for media_id in removed:
-                db.execute("DELETE FROM media WHERE id=?", (media_id,))
-        for media_id in removed:
-            (self.media_dir / (media_id + self._media_extension(media_id))).unlink(missing_ok=True)
-        return self.event_details(event_id)
 
     def insert_field(self, db, event_id, field, position):
         if not isinstance(field, dict):

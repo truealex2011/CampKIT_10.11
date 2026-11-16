@@ -14,6 +14,8 @@ class LocalRepository implements CampusLifeRepository {
   final AppDatabase _db;
   final SharedPreferences _prefs;
 
+  SharedPreferences get prefs => _prefs;
+
   static const _sessionKey = 'campuslife.session.userId';
 
   @override

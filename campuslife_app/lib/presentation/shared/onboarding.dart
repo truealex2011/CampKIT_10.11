@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/theme.dart';
+import '../onboarding/participant_onboarding.dart';
 import 'app_icons.dart';
-import 'glass_sheet.dart';
 import 'kit.dart';
 
 /// Keys for onboarding state.
@@ -149,7 +149,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Column(
               children: [
                 Expanded(
-                  child: _buildMockFeed(step),
+                  child: Listener(
+                    onPointerSignal: (signal) {
+                      if (signal is PointerScrollEvent && _step == 0) {
+                        _completeTask();
+                      }
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragUpdate: (details) {
+                        if (_step == 0 && details.delta.dy.abs() > 6) {
+                          _completeTask();
+                        }
+                      },
+                      child: _buildMockFeed(step),
+                    ),
+                  ),
                 ),
                 // Bottom panel
                 Container(
@@ -382,13 +397,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         height: Scale.railIcon,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isCurrent
-              ? Palette.accent.withValues(alpha: 0.9)
-              : Colors.white.withValues(alpha: 0.12),
+          color: Colors.transparent,
           border: Border.all(
-            color: isCurrent
-                ? Palette.accent
-                : Colors.white.withValues(alpha: 0.24),
+            color: isCurrent ? Palette.accent : Colors.transparent,
             width: isCurrent ? 2 : 1,
           ),
           boxShadow: isCurrent
@@ -403,13 +414,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         child: iconPath != null
             ? Center(
-                child: Image.asset(
-                  iconPath,
-                  width: 22,
-                  height: 22,
-                  color: Colors.white,
-                  colorBlendMode: BlendMode.srcIn,
-                ),
+                child: ActionIcon(path: iconPath, size: Scale.railIcon),
               )
             : null,
       ),
@@ -431,14 +436,27 @@ class _OnboardingStep {
   final String? icon;
 }
 
+/// Opens the interactive participant onboarding walkthrough.
+Future<void> showOnboarding(BuildContext context) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: const Color(0xFFF6F6F3),
+        body: ParticipantOnboarding(
+          onFinished: (result) async {
+            await completeOnboarding();
+            if (context.mounted) Navigator.of(context).pop();
+          },
+        ),
+      ),
+      fullscreenDialog: true,
+    ),
+  );
+}
+
 /// Shows the onboarding if it hasn't been completed yet.
 Future<void> showOnboardingIfNeeded(BuildContext context) async {
   if (await isOnboardingCompleted()) return;
   if (!context.mounted) return;
-  await Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const OnboardingScreen(),
-      fullscreenDialog: true,
-    ),
-  );
+  await showOnboarding(context);
 }

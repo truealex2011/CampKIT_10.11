@@ -10,4 +10,7 @@ temp_repo/
 .sharrowkin/
 .chrome-profile/
 .DS_Store
-*.logcampuslife_app/deliverables/
+__pycache__/
+*.pyc
+*.log
+campuslife_app/deliverables/

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
+import 'app_icons.dart';
 
 Path buildFishPath([double wiggle = 0]) {
   final body = Path()..addOval(const Rect.fromLTRB(2.6, 7, 17.4, 17));
@@ -75,13 +76,9 @@ class FishHeartIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
-    child: CustomPaint(
-      size: Size.square(size),
-      painter: _FishHeartPainter(
-        filled: filled,
-        color: color,
-        heartColor: heartColor ?? (filled ? context.colors.rose : color),
-      ),
+    child: ActionIcon(
+      path: filled ? AppIcons.likeActiveLight : AppIcons.likeLight,
+      size: size,
     ),
   );
 }

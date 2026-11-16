@@ -17,13 +17,15 @@ final _boundaryKey = GlobalKey();
 void main() {
   const dir = 'build/test_shots';
 
-  setUp(() => SharedPreferences.setMockInitialValues({'onboarding_completed': true}));
-
   setUpAll(() {
     Directory(dir).createSync(recursive: true);
     for (final f in Directory(dir).listSync()) {
       if (f is File) f.deleteSync();
     }
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
   });
 
   Future<void> boot(WidgetTester tester, {User? session}) async {
@@ -120,7 +122,7 @@ void main() {
   testWidgets('feed, sheet, search, profile', (tester) async {
     await boot(tester, session: student);
     await shoot(tester, '10_feed');
-    await tester.tap(find.byIcon(Icons.article_outlined).first);
+    await tab(tester, 'ОПИСАНИЕ');
     await settle(tester);
     await shoot(tester, '11_event_sheet');
     await tester.tapAt(const Offset(196, 100));
@@ -137,7 +139,7 @@ void main() {
   testWidgets('organizer console', (tester) async {
     await boot(tester, session: organizer);
     await shoot(tester, '20_org_events');
-    await tab(tester, 'Заявки');
+    await tab(tester, 'Анкеты');
     await shoot(tester, '21_org_requests');
     await tab(tester, 'Статистика');
     await shoot(tester, '22_org_stats');

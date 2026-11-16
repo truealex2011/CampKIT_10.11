@@ -1,33 +1,28 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/entities.dart';
 import '../domain/repositories.dart';
-import 'database.dart' hide EventMedia;
 import 'mappers.dart';
 import 'repository_impl.dart';
 
 class ServerRepository extends LocalRepository {
   ServerRepository(
-    AppDatabase database,
-    SharedPreferences preferences,
+    super.database,
+    super.preferences,
     Uri baseUri,
-  ) : _preferences = preferences,
-       baseUri = baseUri.path.endsWith('/')
-           ? baseUri
-           : baseUri.replace(path: '${baseUri.path}/'),
-       super(database, preferences);
+  ) : baseUri = baseUri.path.endsWith('/')
+          ? baseUri
+          : baseUri.replace(path: '${baseUri.path}/');
 
   final Uri baseUri;
-  final SharedPreferences _preferences;
   static const _tokenKey = 'campuslife.server.token';
   String? _token;
 
   @override
   Future<void> warmUp() async {
-    _token = _preferences.getString(_tokenKey);
+    _token = prefs.getString(_tokenKey);
   }
 
   Future<dynamic> _request(
@@ -86,14 +81,19 @@ class ServerRepository extends LocalRepository {
       body: {'email': account.trim(), 'password': password},
     ));
     _token = '${response['token']}';
-    await _preferences.setString(_tokenKey, _token!);
+    await prefs.setString(_tokenKey, _token!);
     return _user(response['user']);
   }
 
   @override
-  Future<User> signInAs(UserRole role) => Future.error(
-    const AppException('unsupported', 'Демо-вход на сервере недоступен'),
-  );
+  Future<User> signInAs(UserRole role) async {
+    final email = switch (role) {
+      UserRole.participant => 'student@campus.ru',
+      UserRole.organizer => 'organizer@campus.ru',
+      UserRole.admin => 'admin@campus.ru',
+    };
+    return signIn(email, 'password123');
+  }
 
   @override
   Future<User> registerParticipant({
@@ -109,7 +109,7 @@ class ServerRepository extends LocalRepository {
       body: {'name': name, 'email': email, 'phone': phone, 'password': password},
     ));
     _token = '${response['token']}';
-    await _preferences.setString(_tokenKey, _token!);
+    await prefs.setString(_tokenKey, _token!);
     return _user(response['user']);
   }
 
@@ -127,7 +127,7 @@ class ServerRepository extends LocalRepository {
       },
     ));
     _token = '${response['token']}';
-    await _preferences.setString(_tokenKey, _token!);
+    await prefs.setString(_tokenKey, _token!);
     await _request('POST', 'organizations', body: {
       'name': signup.orgName,
       'type': signup.orgType.name,
@@ -206,7 +206,7 @@ class ServerRepository extends LocalRepository {
     } on AppException catch (error) {
       if (error.code == 'unauthorized') {
         _token = null;
-        await _preferences.remove(_tokenKey);
+        await prefs.remove(_tokenKey);
         return null;
       }
       rethrow;
@@ -220,7 +220,7 @@ class ServerRepository extends LocalRepository {
         await _request('POST', 'auth/sign-out', body: const {});
       } finally {
         _token = null;
-        await _preferences.remove(_tokenKey);
+        await prefs.remove(_tokenKey);
       }
     }
   }

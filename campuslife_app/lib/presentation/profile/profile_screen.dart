@@ -346,8 +346,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Switch(
                     value: ref.watch(fishEnabledProvider),
                     onChanged: (_) => ref.read(fishEnabledProvider.notifier).toggle(),
-                    activeColor: Palette.accent,
+                    activeThumbColor: Palette.accent,
                   ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        GlassCard(
+          child: InkWell(
+            onTap: () => showOnboarding(context),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.school_outlined, size: 22, color: Palette.accent),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Обучение',
+                          style: Fonts.sansStyle(
+                            size: 14,
+                            weight: 500,
+                            color: context.colors.ink,
+                          ),
+                        ),
+                        Text(
+                          'Пройти интерактивное обучение заново',
+                          style: Fonts.sansStyle(
+                            size: 11,
+                            color: context.colors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: context.colors.muted),
                 ],
               ),
             ),

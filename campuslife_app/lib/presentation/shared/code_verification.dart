@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/theme.dart';
-import 'glass_sheet.dart';
 import 'kit.dart';
 
 /// A dialog that asks for a verification code.

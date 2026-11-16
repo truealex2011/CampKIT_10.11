@@ -514,14 +514,12 @@ const double _railGap = Scale.railGap;
 
 class _RailButton extends StatelessWidget {
   const _RailButton({
-    this.icon,
     required this.label,
     required this.onTap,
     this.active = false,
     this.iconPath,
   });
 
-  final IconData? icon;
   final String? iconPath;
   final String label;
   final VoidCallback onTap;
@@ -536,7 +534,6 @@ class _RailButton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _RoundIconButton(
-          icon: icon,
           iconPath: iconPath,
           size: 50,
           active: active,
@@ -585,29 +582,26 @@ class _RoundIconButton extends StatelessWidget {
       child: Material(
         shape: CircleBorder(
           side: BorderSide(
-            color: active
-                ? Palette.accent
-                : Colors.white.withValues(alpha: 0.24),
+            color: iconPath != null
+                ? (active ? Palette.accent : Colors.transparent)
+                : active
+                    ? Palette.accent
+                    : Colors.white.withValues(alpha: 0.24),
+            width: iconPath != null && active ? 2 : 1,
           ),
         ),
-        color: active
-            ? Palette.accent.withValues(alpha: 0.92)
-            : Colors.white.withValues(alpha: 0.12),
+        color: iconPath != null
+            ? Colors.transparent
+            : active
+                ? Palette.accent.withValues(alpha: 0.92)
+                : Colors.white.withValues(alpha: 0.12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Center(
             child: glyph ??
                 (iconPath != null
-                    ? Image.asset(
-                        iconPath!,
-                        width: size * 0.46,
-                        height: size * 0.46,
-                        color: active
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.92),
-                        colorBlendMode: BlendMode.srcIn,
-                      )
+                    ? ActionIcon(path: iconPath!, size: size)
                     : Icon(
                         icon,
                         size: size * 0.46,
@@ -1031,12 +1025,8 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                                 ),
                                 _RoundIconButton(
                                   glyph: FishHeartIcon(
-                                    size: 27,
+                                    size: 50,
                                     filled: widget.isFavorite,
-                                    color: Colors.white,
-                                    heartColor: widget.isFavorite
-                                        ? Palette.rose
-                                        : Colors.white,
                                   ),
                                   size: 50,
                                   active: widget.isFavorite,
@@ -1048,11 +1038,9 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                                       opacity: 1 - _fly.value,
                                       child: Transform.translate(
                                         offset: Offset(0, -90 * _fly.value),
-                                        child: FishHeartIcon(
+                                        child: ActionIcon(
+                                          path: AppIcons.likeActiveLight,
                                           size: 46,
-                                          filled: true,
-                                          color: Palette.accent,
-                                          heartColor: Colors.white,
                                         ),
                                       ),
                                     ),

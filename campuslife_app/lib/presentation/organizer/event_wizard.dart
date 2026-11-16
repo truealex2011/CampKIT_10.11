@@ -1013,7 +1013,6 @@ class _FieldDraft {
   _FieldDraft({
     String? id,
     String label = '',
-    this.type = FieldType.text,
     String options = '',
   }) : id = id ?? Ids.next('fld') {
     labelCtrl.text = label;
@@ -1031,7 +1030,7 @@ class _FieldDraft {
   final String id;
   final TextEditingController labelCtrl = TextEditingController();
   final TextEditingController optionsCtrl = TextEditingController();
-  FieldType type;
+  FieldType type = FieldType.text;
   bool required = true;
 
   void dispose() {
