@@ -232,11 +232,13 @@ class CampusLifeService:
     def create_organization(self, user, data):
         name = self.text(data, "name")
         invite_key = str(data.get("invite_key", "")).strip().upper()
-        if invite_key:
-            with self.connect() as db:
-                k_row = db.execute("SELECT code FROM invite_keys WHERE code=?", (invite_key,)).fetchone()
-                if not k_row and not (invite_key.startswith("CL-") and len(invite_key) >= 8):
-                    raise ApiError(400, "invalid_invite_key", "Неверный invite-ключ")
+        if not invite_key:
+            raise ApiError(400, "invalid_invite_key", "Неверный или уже использованный invite-ключ")
+        with self.connect() as db:
+            k_row = db.execute("SELECT code FROM invite_keys WHERE code=? AND used=0", (invite_key,)).fetchone()
+            if not k_row:
+                raise ApiError(400, "invalid_invite_key", "Неверный или уже использованный invite-ключ")
+            db.execute("UPDATE invite_keys SET used=1 WHERE code=?", (invite_key,))
         org_id = identifier()
         with self.connect() as db:
             db.execute("INSERT INTO organizations(id,name,type,city,owner_id,phone,email,created_at) VALUES(?,?,?,?,?,?,?,?)", (org_id, name, str(data.get("type", "club")), self.text(data, "city"), user["id"], str(data.get("phone", "")), str(data.get("email", "")), now()))
@@ -576,15 +578,34 @@ class CampusLifeService:
         return {"reminded": False, "event_id": event_id}
 
     def check_in(self, user, event_id, ticket_id):
+        ticket = str(ticket_id or "").strip()
+        # QR-код билета имеет вид eventId:userId — поддерживаем оба формата.
+        if ":" in ticket:
+            parts = ticket.split(":", 2)
+            if parts[0] == event_id:
+                ticket = parts[1]
         with self.connect() as db:
             row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
             if not row:
                 raise ApiError(404, "not_found", "Event not found")
             self.require_organizer(user, row["org_id"])
-            cursor = db.execute("UPDATE applications SET status='checked_in', updated_at=? WHERE id=? AND event_id=?", (now(), ticket_id, event_id))
+            cursor = db.execute(
+                "UPDATE applications SET status='checked_in', updated_at=? WHERE (id=? OR user_id=?) AND event_id=?",
+                (now(), ticket, ticket, event_id),
+            )
             if cursor.rowcount == 0:
                 raise ApiError(404, "not_found", "Ticket not found for this event")
-        return {"checked_in": True, "ticket_id": ticket_id, "event_id": event_id}
+        return {"checked_in": True, "ticket_id": ticket, "event_id": event_id}
+
+    def my_reminder(self, user, event_id):
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT offset FROM reminders WHERE user_id=? AND event_id=?",
+                (user["id"], event_id),
+            ).fetchone()
+        if not row:
+            return None
+        return {"event_id": event_id, "offset": row["offset"], "event": self.event_details(event_id)}
 
     def event_attendees(self, user, event_id):
         with self.connect() as db:
@@ -744,6 +765,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(200, self.service.set_reminder(self.token_user(), path[1], offset))
             if len(path) == 3 and path[0] == "events" and path[2] == "reminders" and method == "DELETE":
                 return self.send_json(200, self.service.clear_reminder(self.token_user(), path[1]))
+            if len(path) == 3 and path[0] == "events" and path[2] == "reminders" and method == "GET":
+                return self.send_json(200, self.service.my_reminder(self.token_user(), path[1]))
             if len(path) == 3 and path[0] == "events" and path[2] == "attendees" and method == "GET":
                 return self.send_json(200, self.service.event_attendees(self.token_user(), path[1]))
             if len(path) == 3 and path[0] == "events" and path[2] == "check-in" and method == "POST":

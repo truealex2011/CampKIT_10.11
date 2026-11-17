@@ -49,7 +49,7 @@ class CampusLifeApiTests(unittest.TestCase):
     def test_required_answers_approval_and_notifications(self):
         organizer_token, organizer = self.register("Organizer", "organizer@example.test")
         participant_token, _ = self.register("Participant", "participant@example.test")
-        status, organization = self.request("POST", "/organizations", {"name": "Campus Club", "city": "City"}, organizer_token)
+        status, organization = self.request("POST", "/organizations", {"name": "Campus Club", "city": "City", "invite_key": "CL-CAMP-2026"}, organizer_token)
         self.assertEqual(status, 201)
         status, event = self.request("POST", f"/organizations/{organization['id']}/events", {
             "title": "Welcome Day", "category": "lecture", "start_at": "2030-01-01T10:00:00Z", "place": "Hall",
@@ -78,7 +78,7 @@ class CampusLifeApiTests(unittest.TestCase):
 
     def test_media_upload_survives_service_restart(self):
         organizer_token, _ = self.register("Organizer", "media@example.test")
-        _, organization = self.request("POST", "/organizations", {"name": "Media Club", "city": "City"}, organizer_token)
+        _, organization = self.request("POST", "/organizations", {"name": "Media Club", "city": "City", "invite_key": "CL-DEMO-ORGS"}, organizer_token)
         _, event = self.request("POST", f"/organizations/{organization['id']}/events", {
             "title": "Photo Event", "category": "art", "start_at": "2030-01-01T10:00:00Z", "place": "Room",
         }, organizer_token)
@@ -105,6 +105,55 @@ class CampusLifeApiTests(unittest.TestCase):
             replacement.server_close()
             thread.join(timeout=2)
             self.server, self.thread, self.base_url = old_server, old_thread, old_url
+    def test_publish_favorites_reminders_tickets_and_checkin(self):
+        organizer_token, organizer = self.register("Org2", "org2@example.test")
+        participant_token, participant = self.register("Part2", "part2@example.test")
+
+        status, error = self.request("POST", "/organizations", {"name": "X", "city": "C", "invite_key": "CL-XXXX-XXXX"}, organizer_token)
+        self.assertEqual(status, 400)
+        self.assertEqual(error["error"]["code"], "invalid_invite_key")
+
+        status, org = self.request("POST", "/organizations", {"name": "Sync Club", "city": "City", "invite_key": "CL-HACK-2026"}, organizer_token)
+        self.assertEqual(status, 201)
+
+        status, error = self.request("POST", "/organizations", {"name": "Y", "city": "C", "invite_key": "CL-HACK-2026"}, organizer_token)
+        self.assertEqual(status, 400)
+
+        status, event = self.request("POST", f"/organizations/{org['id']}/events", {
+            "title": "Sync Event", "category": "science", "start_at": "2030-02-01T10:00:00Z", "place": "Hall", "status": "draft",
+        }, organizer_token)
+        self.assertEqual(status, 201)
+        self.assertEqual(event["status"], "draft")
+
+        status, published = self.request("PUT", f"/events/{event['id']}/status", {"status": "published"}, organizer_token)
+        self.assertEqual(status, 200)
+        self.assertEqual(published["status"], "published")
+
+        status, favorite = self.request("POST", f"/events/{event['id']}/favorite", {}, participant_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(favorite["favorited"])
+        status, favorites = self.request("GET", "/my/favorites", token=participant_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(any(item["id"] == event["id"] for item in favorites))
+
+        status, _ = self.request("POST", f"/events/{event['id']}/reminders", {"offset": "oneDay"}, participant_token)
+        self.assertEqual(status, 200)
+        status, reminder = self.request("GET", f"/events/{event['id']}/reminders", token=participant_token)
+        self.assertEqual(status, 200)
+        self.assertEqual(reminder["offset"], "oneDay")
+
+        status, application = self.request("POST", f"/events/{event['id']}/applications", {"answers": {}}, participant_token)
+        self.assertEqual(status, 201)
+        status, tickets = self.request("GET", "/my/tickets", token=participant_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(any(item["event_id"] == event["id"] for item in tickets))
+
+        status, checked = self.request("POST", f"/events/{event['id']}/check-in", {"ticket_id": participant["id"]}, organizer_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(checked["checked_in"])
+        status, attendees = self.request("GET", f"/events/{event['id']}/attendees", token=organizer_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(any(item["status"] == "checked_in" for item in attendees))
 
 
 if __name__ == "__main__":

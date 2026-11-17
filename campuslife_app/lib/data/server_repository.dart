@@ -134,6 +134,7 @@ class ServerRepository extends LocalRepository {
       'city': signup.city,
       'phone': signup.phone,
       'email': signup.email,
+      'invite_key': signup.inviteKey,
     });
     return _user(response['user']);
   }
@@ -428,5 +429,144 @@ class ServerRepository extends LocalRepository {
       return '${base.scheme}://${base.host}$portPart/#/events/$eventId';
     }
     return 'http://127.0.0.1:8731/#/events/$eventId';
+  }
+
+  // ---- Синхронизация с сервером: избранное, напоминания, билеты, QR ----
+
+  @override
+  Future<bool> toggleFavorite(String eventId, String userId) async {
+    final response = _map(await _request('POST', 'events/$eventId/favorite'));
+    return response['favorited'] == true;
+  }
+
+  @override
+  Future<List<CampusEvent>> favorites(String userId) async {
+    final response = await _request('GET', 'my/favorites');
+    return (response as List).map(_event).toList(growable: false);
+  }
+
+  @override
+  Future<List<String>> favoriteEventIds(String userId) async {
+    final events = await favorites(userId);
+    return [for (final event in events) event.id];
+  }
+
+  @override
+  Future<void> setReminder(
+    String eventId,
+    String userId,
+    ReminderOffset offset, {
+    DateTime? customAt,
+  }) async {
+    await _request(
+      'POST',
+      'events/$eventId/reminders',
+      body: {'offset': offset.name},
+    );
+  }
+
+  @override
+  Future<void> clearReminder(String eventId, String userId) async {
+    await _request('DELETE', 'events/$eventId/reminders');
+  }
+
+  @override
+  Future<Reminder?> reminderOf(String eventId, String userId) async {
+    dynamic response;
+    try {
+      response = await _request('GET', 'events/$eventId/reminders');
+    } on AppException catch (error) {
+      if (error.code == 'not_found') return null;
+      rethrow;
+    }
+    if (response == null) return null;
+    final json = _map(response);
+    final offset = enumByName(
+      ReminderOffset.values,
+      '${json['offset']}',
+      ReminderOffset.oneHour,
+    );
+    final event = _event(json['event']);
+    final fireAt = switch (offset) {
+      ReminderOffset.oneHour => event.startAt.subtract(const Duration(hours: 1)),
+      ReminderOffset.oneDay => event.startAt.subtract(const Duration(days: 1)),
+      ReminderOffset.custom => event.startAt,
+    };
+    return Reminder(
+      userId: userId,
+      eventId: eventId,
+      fireAt: fireAt,
+      offset: offset,
+    );
+  }
+
+  @override
+  Future<List<TicketBundle>> myTickets(String userId) async {
+    final response = await _request('GET', 'my/tickets');
+    final bundles = <TicketBundle>[];
+    for (final item in (response as List)) {
+      final json = _map(item);
+      final eventId = '${json['event_id']}';
+      CampusEvent event;
+      final rawEvent = json['event'];
+      if (rawEvent is Map) {
+        event = _event(rawEvent);
+      } else {
+        final loaded = await eventById(eventId);
+        if (loaded == null) continue;
+        event = loaded;
+      }
+      final status = '${json['status'] ?? 'pending'}';
+      final updatedAt = DateTime.tryParse('${json['updated_at'] ?? ''}');
+      bundles.add(
+        TicketBundle(
+          event: event,
+          registration: Registration(
+            id: '${json['id']}',
+            eventId: eventId,
+            userId: userId,
+            createdAt: DateTime.parse('${json['created_at']}'),
+            checkedInAt: status == 'checked_in' ? updatedAt : null,
+            status: status,
+          ),
+        ),
+      );
+    }
+    bundles.sort((a, b) => a.event.startAt.compareTo(b.event.startAt));
+    return bundles;
+  }
+
+  @override
+  Future<bool> toggleRegistration(String eventId, String userId) async {
+    await _request(
+      'POST',
+      'events/$eventId/applications',
+      body: {'answers': const <String, String>{}},
+    );
+    return true;
+  }
+
+  @override
+  Future<Registration?> checkIn(String ticketCode) async {
+    final parts = ticketCode.trim().split(':');
+    if (parts.length != 2) {
+      throw const AppException('ticket', 'Код билета имеет вид eventId:userId');
+    }
+    final eventId = parts[0];
+    final userId = parts[1];
+    final response = _map(
+      await _request(
+        'POST',
+        'events/$eventId/check-in',
+        body: {'ticket_id': userId},
+      ),
+    );
+    return Registration(
+      id: '${response['ticket_id'] ?? ticketCode}',
+      eventId: eventId,
+      userId: userId,
+      createdAt: DateTime.now(),
+      status: 'checked_in',
+    );
   }
 }

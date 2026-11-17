@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/entities.dart';
 import '../presentation/admin/admin_home.dart';
 import '../presentation/entry/entry_screen.dart';
+import '../presentation/feed/event_sheet.dart';
 import '../presentation/feed/feed_screen.dart';
 import '../presentation/feed/search_screen.dart';
 import '../presentation/organizer/event_wizard.dart';
@@ -59,6 +60,17 @@ class _CampusLifeAppState extends ConsumerState<CampusLifeApp> {
         AppRoutes.admin: (_) => const AdminHomeScreen(),
       },
       onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        // Глубокая ссылка вида /events/<id> (в т.ч. #/events/<id> в web).
+        if (name.startsWith('/events/')) {
+          final eventId = name.substring('/events/'.length).split('?').first;
+          if (eventId.isNotEmpty) {
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (_) => EventDeepLink(eventId: eventId),
+            );
+          }
+        }
         switch (settings.name) {
           case AppRoutes.wizard:
             final args =
@@ -183,4 +195,27 @@ class EntryRoute extends ConsumerWidget {
     String message, {
     bool error = false,
   }) => ToastController.show(context, message, error: error);
+}
+
+/// Открывает ленту и сразу поднимает карточку события из deep link.
+class EventDeepLink extends ConsumerStatefulWidget {
+  const EventDeepLink({super.key, required this.eventId});
+
+  final String eventId;
+
+  @override
+  ConsumerState<EventDeepLink> createState() => _EventDeepLinkState();
+}
+
+class _EventDeepLinkState extends ConsumerState<EventDeepLink> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) openEventSheet(context, widget.eventId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const FeedScreen();
 }
