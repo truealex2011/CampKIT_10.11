@@ -155,6 +155,62 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(any(item["status"] == "checked_in" for item in attendees))
 
+    def test_admin_invite_keys_moderation_and_counters(self):
+        # 1. Sign in as admin
+        status, admin_auth = self.request("POST", "/auth/sign-in", {"email": "admin@campus.ru", "password": "password123"})
+        self.assertEqual(status, 200)
+        admin_token = admin_auth["token"]
+
+        # 2. Check initial keys and mint a new one
+        status, keys = self.request("GET", "/admin/invite-keys", token=admin_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(len(keys) >= 3)
+        self.assertTrue(any(k["code"] == "CL-CAMP-2026" for k in keys))
+
+        status, minted = self.request("POST", "/admin/invite-keys", token=admin_token)
+        self.assertEqual(status, 201)
+        minted_code = minted["code"]
+        self.assertTrue(minted_code.startswith("CL-"))
+        self.assertFalse(minted["used"])
+
+        # 3. New organizer registers with minted key
+        org_token, org_user = self.register("New Org", "neworg@example.test")
+        status, new_org = self.request("POST", "/organizations", {
+            "name": "Robotics Club", "city": "Tomsk", "invite_key": minted_code,
+        }, org_token)
+        self.assertEqual(status, 201)
+
+        # 4. Minted key cannot be reused
+        status, error = self.request("POST", "/organizations", {
+            "name": "Second Club", "city": "Tomsk", "invite_key": minted_code,
+        }, org_token)
+        self.assertEqual(status, 400)
+        self.assertEqual(error["error"]["code"], "invalid_invite_key")
+
+        # 5. Organizer creates event in pendingReview status
+        status, event = self.request("POST", f"/organizations/{new_org['id']}/events", {
+            "title": "Robo Expo", "category": "science", "start_at": "2030-05-01T12:00:00Z", "place": "Lab", "status": "pendingReview",
+        }, org_token)
+        self.assertEqual(status, 201)
+        self.assertEqual(event["status"], "pendingReview")
+
+        # 6. Admin sees it in moderation queue and approves it
+        status, queue = self.request("GET", "/admin/moderation", token=admin_token)
+        self.assertEqual(status, 200)
+        self.assertTrue(any(item["id"] == event["id"] for item in queue))
+
+        status, approved = self.request("PUT", f"/events/{event['id']}/status", {"status": "published"}, admin_token)
+        self.assertEqual(status, 200)
+        self.assertEqual(approved["status"], "published")
+
+        # 7. Counters reflect the data
+        status, counters = self.request("GET", "/admin/counters", token=admin_token)
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(counters["events"], 1)
+        self.assertGreaterEqual(counters["orgs"], 1)
+        self.assertGreaterEqual(counters["users"], 2)
+        self.assertGreaterEqual(counters["active_invite_keys"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

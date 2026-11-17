@@ -185,12 +185,18 @@ class CampusLifeService:
         return dict(row)
 
     def require_organizer(self, user, org_id):
+        if user and user.get("role") == "admin":
+            return
         with self.connect() as db:
             row = db.execute("SELECT o.owner_id,m.role,m.status FROM organizations o LEFT JOIN memberships m ON m.org_id=o.id AND m.user_id=? WHERE o.id=?", (user["id"], org_id)).fetchone()
         if row is None:
             raise ApiError(404, "not_found", "Organization not found")
         if row["owner_id"] != user["id"] and not (row["status"] == "approved" and row["role"] in ("owner", "manager")):
             raise ApiError(403, "forbidden", "Organizer access is required")
+
+    def require_admin(self, user):
+        if not user or user.get("role") != "admin":
+            raise ApiError(403, "forbidden", "Admin access is required")
 
     def notify(self, db, user_id, kind, payload):
         db.execute("INSERT INTO notifications(id,user_id,type,payload_json,created_at) VALUES(?,?,?,?,?)", (identifier(), user_id, kind, encode(payload), now()))
@@ -619,6 +625,46 @@ class CampusLifeService:
             ).fetchall()
         return [dict(r, answers=json.loads(r["answers_json"])) for r in rows]
 
+    def list_invite_keys(self, user):
+        self.require_admin(user)
+        with self.connect() as db:
+            rows = db.execute("SELECT code, created_at, used FROM invite_keys ORDER BY created_at DESC").fetchall()
+        return [dict(row, used=bool(row["used"])) for row in rows]
+
+    def mint_invite_key(self, user):
+        self.require_admin(user)
+        chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        part1 = "".join(secrets.choice(chars) for _ in range(4))
+        part2 = "".join(secrets.choice(chars) for _ in range(4))
+        code = f"CL-{part1}-{part2}"
+        created = now()
+        with self.connect() as db:
+            db.execute("INSERT INTO invite_keys(code, created_at, used) VALUES(?, ?, 0)", (code, created))
+        return {"code": code, "created_at": created, "used": False}
+
+    def moderation_queue(self, user):
+        self.require_admin(user)
+        with self.connect() as db:
+            rows = db.execute("SELECT id FROM events WHERE status='pendingReview' ORDER BY created_at DESC").fetchall()
+        return [self.event_details(row["id"]) for row in rows]
+
+    def admin_counters(self, user):
+        self.require_admin(user)
+        with self.connect() as db:
+            events_count = db.execute("SELECT count(*) as c FROM events").fetchone()["c"]
+            orgs_count = db.execute("SELECT count(*) as c FROM organizations").fetchone()["c"]
+            users_count = db.execute("SELECT count(*) as c FROM users").fetchone()["c"]
+            pending_count = db.execute("SELECT count(*) as c FROM events WHERE status='pendingReview'").fetchone()["c"]
+            keys_count = db.execute("SELECT count(*) as c FROM invite_keys WHERE used=0").fetchone()["c"]
+        return {
+            "events": events_count,
+            "orgs": orgs_count,
+            "users": users_count,
+            "pending_moderation": pending_count,
+            "open_reports": 0,
+            "active_invite_keys": keys_count,
+        }
+
 class Handler(BaseHTTPRequestHandler):
     service = None
     cors_origin = "*"
@@ -795,6 +841,14 @@ class Handler(BaseHTTPRequestHandler):
                 with self.service.connect() as db:
                     db.execute("DELETE FROM sessions WHERE token_hash=? AND user_id=?", (hashlib.sha256(token.encode()).hexdigest(), user["id"]))
                 return self.send_json(200, {"signed_out": True})
+            if len(path) == 2 and path[0] == "admin" and path[1] == "invite-keys" and method == "GET":
+                return self.send_json(200, self.service.list_invite_keys(self.token_user()))
+            if len(path) == 2 and path[0] == "admin" and path[1] == "invite-keys" and method == "POST":
+                return self.send_json(201, self.service.mint_invite_key(self.token_user()))
+            if len(path) == 2 and path[0] == "admin" and path[1] == "moderation" and method == "GET":
+                return self.send_json(200, self.service.moderation_queue(self.token_user()))
+            if len(path) == 2 and path[0] == "admin" and path[1] == "counters" and method == "GET":
+                return self.send_json(200, self.service.admin_counters(self.token_user()))
             raise ApiError(404, "not_found", "Route not found")
         except ApiError as error:
             self.send_json(error.status, {"error": {"code": error.code, "message": error.message}})

@@ -68,7 +68,7 @@
 Из корня репозитория:
 
 ```bash
-py -3 -m campuslife_server.server --port 8080
+py -3 -m campuslife_server.server --port 8080 --data-dir ./campuslife-data
 ```
 
 Сервер поднимет API на `http://127.0.0.1:8080`, создаст/проинициализирует БД в `./campuslife-data` и засеет демо-аккаунты:

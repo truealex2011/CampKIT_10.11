@@ -569,4 +569,73 @@ class ServerRepository extends LocalRepository {
       status: 'checked_in',
     );
   }
+
+  @override
+  Future<List<InviteKey>> inviteKeys() async {
+    final response = await _request('GET', 'admin/invite-keys');
+    return (response as List).map((item) {
+      final json = _map(item);
+      final code = '${json['code']}';
+      final used = json['used'] == true || json['used'] == 1;
+      final createdAt = json['created_at'] != null
+          ? DateTime.tryParse('${json['created_at']}')
+          : null;
+      return InviteKey(
+        id: code,
+        keyHash: code,
+        used: used,
+        plainKey: code,
+        createdAt: createdAt,
+      );
+    }).toList(growable: false);
+  }
+
+  @override
+  Future<InviteKey> mintInviteKey() async {
+    final response = _map(await _request('POST', 'admin/invite-keys'));
+    final code = '${response['code']}';
+    return InviteKey(
+      id: code,
+      keyHash: code,
+      used: false,
+      plainKey: code,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<List<CampusEvent>> moderationQueue() async {
+    final response = await _request('GET', 'admin/moderation');
+    return (response as List).map(_event).toList(growable: false);
+  }
+
+  @override
+  Future<CampusEvent> moderate(
+    String eventId,
+    bool approve, {
+    String note = '',
+  }) async {
+    final response = _map(
+      await _request(
+        'PUT',
+        'events/$eventId/status',
+        body: {'status': approve ? 'published' : 'rejected'},
+      ),
+    );
+    return _event(response);
+  }
+
+  @override
+  Future<AppCounters> counters() async {
+    final response = _map(await _request('GET', 'admin/counters'));
+    return AppCounters(
+      events: (response['events'] as num?)?.toInt() ?? 0,
+      orgs: (response['orgs'] as num?)?.toInt() ?? 0,
+      users: (response['users'] as num?)?.toInt() ?? 0,
+      pendingModeration:
+          (response['pending_moderation'] as num?)?.toInt() ?? 0,
+      openReports: (response['open_reports'] as num?)?.toInt() ?? 0,
+      activeInviteKeys: (response['active_invite_keys'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
