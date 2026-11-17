@@ -29,6 +29,7 @@ class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
 
   int _tab = 0;
   int _orgIndex = 0;
+  String _focusEventId = '';
 
   Future<void> _signOut() async {
     final navigator = Navigator.of(context);
@@ -154,8 +155,18 @@ class _OrganizerHomeScreenState extends ConsumerState<OrganizerHomeScreen> {
         ],
       ),
       body: switch (_tab) {
-        0 => _EventsTab(orgId: org.id),
-        1 => _ApplicationsTab(orgId: org.id),
+        0 => _EventsTab(
+          orgId: org.id,
+          onOpenApplications: (eventId) => setState(() {
+            _focusEventId = eventId;
+            _tab = 1;
+          }),
+        ),
+        1 => _ApplicationsTab(
+          orgId: org.id,
+          focusEventId: _focusEventId,
+          onClearFocus: () => setState(() => _focusEventId = ''),
+        ),
         2 => _RequestsTab(orgId: org.id),
         _ => StatsView(orgId: org.id),
       },
@@ -227,28 +238,81 @@ class _ConsoleShell extends StatelessWidget {
   );
 }
 
-class _EventsTab extends ConsumerWidget {
-  const _EventsTab({required this.orgId});
+class _EventsTab extends ConsumerStatefulWidget {
+  const _EventsTab({
+    required this.orgId,
+    required this.onOpenApplications,
+  });
 
   final String orgId;
+  final ValueChanged<String> onOpenApplications;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final events = ref.watch(organizerEventsProvider(orgId));
+  ConsumerState<_EventsTab> createState() => _EventsTabState();
+}
+
+class _EventsTabState extends ConsumerState<_EventsTab> {
+  static const _filters = ['Все', 'Черновики', 'Опубликовано', 'Архив'];
+
+  final TextEditingController _search = TextEditingController();
+  int _filter = 0;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<CampusEvent> _filtered(List<CampusEvent> source) {
+    final query = _search.text.trim().toLowerCase();
+    final now = DateTime.now();
+    return source.where((event) {
+      final matchesQuery =
+          query.isEmpty ||
+          event.title.toLowerCase().contains(query) ||
+          event.place.toLowerCase().contains(query);
+      if (!matchesQuery) return false;
+      return switch (_filter) {
+        0 => true,
+        1 => event.status == EventStatus.draft,
+        2 => event.status == EventStatus.published,
+        _ =>
+          event.status == EventStatus.cancelled ||
+          event.status == EventStatus.rejected ||
+          event.status == EventStatus.pendingReview ||
+          !event.startAt.isAfter(now),
+      };
+    }).toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final events = ref.watch(organizerEventsProvider(widget.orgId));
     return switch (events) {
-      AsyncData(:final value) =>
-        value.isEmpty
-            ? const EmptyPlate(
-                lead: 'Ни одного события.',
-                text:
-                    'Нажми «Новое событие» и собери афишу по шагам — черновик сохранится сам.',
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.only(top: 2, bottom: 8),
-                itemCount: value.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, i) => _EventCard(event: value[i]),
-              ),
+      AsyncData(:final value) when value.isEmpty => const EmptyPlate(
+        lead: 'Ни одного события.',
+        text: 'Нажми «Новое событие» и собери афишу по шагам — черновик сохранится сам.',
+      ),
+      AsyncData(:final value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassField(
+            label: 'поиск среди событий',
+            controller: _search,
+            hint: 'Название или место',
+            icon: Icons.search_rounded,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          SegTabs(
+            items: _filters,
+            index: _filter,
+            onSelect: (i) => setState(() => _filter = i),
+          ),
+          const SizedBox(height: 12),
+          Expanded(child: _list(_filtered(value))),
+        ],
+      ),
       AsyncError() => const EmptyPlate(
         lead: 'Сбой.',
         text: 'Список событий не загрузился. Обнови экран позже.',
@@ -256,12 +320,32 @@ class _EventsTab extends ConsumerWidget {
       _ => const Center(child: FishLoader(size: 40)),
     };
   }
+
+  Widget _list(List<CampusEvent> value) => value.isEmpty
+      ? const EmptyPlate(
+          lead: 'Ничего не найдено.',
+          text: 'Измени поисковый запрос или выбери другой фильтр.',
+        )
+      : ListView.separated(
+          padding: const EdgeInsets.only(top: 2, bottom: 8),
+          itemCount: value.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (context, i) => _EventCard(
+            event: value[i],
+            onOpenApplications: () =>
+                widget.onOpenApplications(value[i].id),
+          ),
+        );
 }
 
 class _EventCard extends ConsumerWidget {
-  const _EventCard({required this.event});
+  const _EventCard({
+    required this.event,
+    required this.onOpenApplications,
+  });
 
   final CampusEvent event;
+  final VoidCallback onOpenApplications;
 
   bool get _cancellable =>
       event.status == EventStatus.published ||
@@ -314,6 +398,11 @@ class _EventCard extends ConsumerWidget {
                 label: 'Посмотреть',
                 icon: Icons.visibility_outlined,
                 onPressed: () => EventPreviewScreen.show(context, event),
+              ),
+              GhostButton(
+                label: 'Заявки',
+                icon: Icons.description_outlined,
+                onPressed: onOpenApplications,
               ),
               if (event.status != EventStatus.cancelled)
                 GhostButton(
@@ -442,9 +531,15 @@ class _RegistrationsLine extends ConsumerWidget {
 }
 
 class _ApplicationsTab extends ConsumerWidget {
-  const _ApplicationsTab({required this.orgId});
+  const _ApplicationsTab({
+    required this.orgId,
+    required this.focusEventId,
+    required this.onClearFocus,
+  });
 
   final String orgId;
+  final String focusEventId;
+  final VoidCallback onClearFocus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -456,8 +551,25 @@ class _ApplicationsTab extends ConsumerWidget {
       ),
       AsyncData(:final value) => ListView(
         children: [
+          if (focusEventId.isNotEmpty) ...[
+            Row(
+              children: [
+                const MicroLabel('только выбранное событие'),
+                const Spacer(),
+                TextLink('Все заявки', onTap: onClearFocus),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
           for (final event in value)
-            _EventApplicationsSection(event: event),
+            if (focusEventId.isEmpty || event.id == focusEventId)
+              _EventApplicationsSection(event: event),
+          if (focusEventId.isNotEmpty &&
+              !value.any((event) => event.id == focusEventId))
+            const EmptyPlate(
+              lead: 'Событие не найдено.',
+              text: 'Возможно, оно было удалено. Покажи все заявки.',
+            ),
         ],
       ),
       AsyncError() => const EmptyPlate(

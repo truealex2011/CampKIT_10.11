@@ -10,6 +10,7 @@ import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../entry/entry_widgets.dart';
+import '../feed/event_sheet.dart';
 import '../shared/event_preview_screen.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
@@ -56,6 +57,8 @@ class _EventWizardState extends ConsumerState<EventWizard> {
   bool _busy = false;
   bool _left = false;
   String? _hint;
+  CampusEvent? _resultEvent;
+  bool _resultPublished = false;
 
   @override
   void initState() {
@@ -156,6 +159,8 @@ class _EventWizardState extends ConsumerState<EventWizard> {
         body: SafeArea(child: Center(child: FishLoader(size: 40))),
       );
     }
+    final result = _resultEvent;
+    if (result != null) return _successView(result);
     final width = MediaQuery.sizeOf(context).width;
     return PopScope(
       canPop: false,
@@ -230,6 +235,76 @@ class _EventWizardState extends ConsumerState<EventWizard> {
                 _footer(),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _successView(CampusEvent event) {
+    final published = _resultPublished;
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: Scale.gutter(MediaQuery.sizeOf(context).width),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 26),
+              Icon(
+                published
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.edit_note_rounded,
+                size: 58,
+                color: published ? Palette.mint : Palette.gold,
+              ),
+              const SizedBox(height: 18),
+              MicroLabel(
+                published ? 'отправлено на модерацию' : 'черновик сохранён',
+              ),
+              const SizedBox(height: 4),
+              Text(
+                published ? 'Событие создано' : 'Черновик сохранён',
+                style: Fonts.sansStyle(size: 24, weight: 700, height: 1.15),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                event.title.trim().isEmpty ? 'Без названия' : event.title.trim(),
+                style: Fonts.sansStyle(size: 16, weight: 600),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${event.place.isEmpty ? 'место не указано' : event.place} · ${event.status.label}',
+                style: Fonts.sansStyle(size: 12.5, color: Palette.ink2),
+              ),
+              const SizedBox(height: 14),
+              NoteBlock(
+                lead: published ? 'Модерация.' : 'Черновик.',
+                text: published
+                    ? 'Событие уйдёт в общую ленту после подтверждения модератором. Сейчас оно видно в кабинете организатора.'
+                    : 'Событие не видно участникам. Вернись в кабинет и продолжи редактирование в удобное время.',
+              ),
+              const Spacer(),
+              PrimaryButton(
+                label: 'Открыть событие',
+                icon: Icons.visibility_outlined,
+                arrow: false,
+                onPressed: () {
+                  final id = event.id;
+                  Navigator.of(context).pop();
+                  openEventSheet(context, id);
+                },
+              ),
+              const SizedBox(height: 10),
+              GhostButton(
+                label: 'Вернуться в кабинет',
+                expand: true,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(height: 18),
+            ],
           ),
         ),
       ),
@@ -378,10 +453,25 @@ class _EventWizardState extends ConsumerState<EventWizard> {
             onPressed: _busy ? null : _pickVideo,
           ),
           GhostButton(
-            label: 'Фото (${_photos.length}/20)',
+            label: 'Добавить фото',
             onPressed: _busy ? null : _pickPhotos,
           ),
         ),
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Icon(
+            Icons.photo_library_outlined,
+            size: 16,
+            color: context.colors.muted,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Загружено: ${_photos.length}/20',
+            style: Fonts.monoStyle(size: 11, color: context.colors.muted),
+          ),
+        ],
       ),
       const SizedBox(height: 12),
       if (_video == null && _photos.isEmpty)
@@ -891,19 +981,18 @@ class _EventWizardState extends ConsumerState<EventWizard> {
       _busy = true;
       _hint = null;
     });
-    final navigator = Navigator.of(context);
     try {
       final repository = ref.read(repositoryProvider);
       final saved = await repository.saveDraft(_buildEvent(EventStatus.draft));
-      await repository.publish(saved.id);
+      final published = await repository.publish(saved.id);
       ref.read(revisionProvider.notifier).bump();
       if (!mounted) return;
       setState(() {
         _busy = false;
         _left = true;
+        _resultEvent = published;
+        _resultPublished = true;
       });
-      ToastController.show(context, 'Отправлено на модерацию');
-      navigator.pop();
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -927,14 +1016,18 @@ class _EventWizardState extends ConsumerState<EventWizard> {
       return;
     }
     setState(() => _busy = true);
-    await _persist(EventStatus.draft);
+    final saved = await _persist(EventStatus.draft);
     if (!mounted) return;
+    if (saved == null) {
+      setState(() => _busy = false);
+      return;
+    }
     setState(() {
       _busy = false;
       _left = true;
+      _resultEvent = saved;
+      _resultPublished = false;
     });
-    ToastController.show(context, 'Черновик сохранён');
-    Navigator.of(context).pop();
   }
 
   Future<void> _saveAndExit() async {
@@ -961,17 +1054,21 @@ class _EventWizardState extends ConsumerState<EventWizard> {
     navigator.pop();
   }
 
-  Future<void> _persist(EventStatus status) async {
+  Future<CampusEvent?> _persist(EventStatus status) async {
     try {
-      await ref.read(repositoryProvider).saveDraft(_buildEvent(status));
+      final saved = await ref
+          .read(repositoryProvider)
+          .saveDraft(_buildEvent(status));
       ref.read(revisionProvider.notifier).bump();
+      return saved;
     } on AppException catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => _hint = e.message);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => _hint = 'Черновик не сохранился');
     }
+    return null;
   }
 
   String _bytesLabel(int bytes) =>
