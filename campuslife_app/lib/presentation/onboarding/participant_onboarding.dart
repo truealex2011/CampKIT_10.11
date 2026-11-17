@@ -968,6 +968,12 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                 focusLabel: index == _feedIndex ? _focusLabel() : '',
                 tooShort: _tooShort && index == _feedIndex,
                 phase: _phase,
+                hold: _hold,
+                dragX: _dragX,
+                dragHeld: _dragHeld && index == _feedIndex,
+                dragPast: _dragPast,
+                travel: geo.trackTravel,
+                threshold: geo.trackThreshold,
                 onReminderTap: () => _openSheet(_SheetKind.reminder),
                 onLikeTap: _onFishTap,
                 onLongPressDown: _onLongPressDown,
@@ -1156,24 +1162,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
             ),
           ),
         ),
-        if (_dragHeld && _phase == _Phase.register)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 96,
-            child: IgnorePointer(
-              child: Center(
-                child: _HoldTrack(
-                  hold: _hold,
-                  dragX: _dragX,
-                  travel: geo.trackTravel,
-                  threshold: geo.trackThreshold,
-                  past: _dragPast,
-                  ready: _holdReady,
-                ),
-              ),
-            ),
-          ),
+
         if (_profileOpen)
           Positioned.fill(
             child: _phase == _Phase.search
@@ -1566,6 +1555,12 @@ class _FeedSlide extends StatelessWidget {
     required this.focusLabel,
     required this.tooShort,
     required this.phase,
+    required this.hold,
+    required this.dragX,
+    required this.dragHeld,
+    required this.dragPast,
+    required this.travel,
+    required this.threshold,
     this.onReminderTap,
     this.onLikeTap,
     this.onLongPressDown,
@@ -1599,6 +1594,12 @@ class _FeedSlide extends StatelessWidget {
   final String focusLabel;
   final bool tooShort;
   final _Phase phase;
+  final Animation<double> hold;
+  final ValueListenable<double> dragX;
+  final bool dragHeld;
+  final bool dragPast;
+  final double travel;
+  final double threshold;
   final VoidCallback? onReminderTap;
   final VoidCallback? onLikeTap;
   final GestureLongPressDownCallback? onLongPressDown;
@@ -1707,37 +1708,48 @@ class _FeedSlide extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final item in _RailAction.values) ...[
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: switch (item) {
-                    _RailAction.bell => onReminderTap,
-                    _RailAction.fish => onLikeTap,
-                    _RailAction.info => onDescriptionTap,
-                    _RailAction.share => onShareTap,
-                    _RailAction.flag => onReportTap,
-                  },
-                  onLongPressDown:
-                      item == _RailAction.fish ? onLongPressDown : null,
-                  onLongPressStart:
-                      item == _RailAction.fish ? onLongPressStart : null,
-                  onLongPressMoveUpdate:
-                      item == _RailAction.fish ? onLongPressMove : null,
-                  onLongPressEnd:
-                      item == _RailAction.fish ? onLongPressEnd : null,
-                  onLongPressCancel:
-                      item == _RailAction.fish ? onLongPressCancel : null,
-                  child: _ActionGlyph(
-                    action: item,
-                    focused: active && _actionFor(phase) == item,
-                    accent: switch (item) {
-                      _RailAction.bell => hasReminder,
-                      _RailAction.fish => isFavorite || isRegistered,
-                      _RailAction.info => isDescriptionRead,
-                      _RailAction.share => isShared,
-                      _RailAction.flag => isReported,
+                if (item == _RailAction.fish)
+                  _RailFishButton(
+                    item: item,
+                    active: active,
+                    phase: phase,
+                    isFavorite: isFavorite,
+                    isRegistered: isRegistered,
+                    onTap: onLikeTap,
+                    onLongPressDown: onLongPressDown,
+                    onLongPressStart: onLongPressStart,
+                    onLongPressMove: onLongPressMove,
+                    onLongPressEnd: onLongPressEnd,
+                    onLongPressCancel: onLongPressCancel,
+                    hold: hold,
+                    dragX: dragX,
+                    dragHeld: dragHeld,
+                    dragPast: dragPast,
+                    travel: travel,
+                    threshold: threshold,
+                  )
+                else
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: switch (item) {
+                      _RailAction.bell => onReminderTap,
+                      _RailAction.info => onDescriptionTap,
+                      _RailAction.share => onShareTap,
+                      _RailAction.flag => onReportTap,
+                      _ => null,
                     },
+                    child: _ActionGlyph(
+                      action: item,
+                      focused: active && _actionFor(phase) == item,
+                      accent: switch (item) {
+                        _RailAction.bell => hasReminder,
+                        _RailAction.info => isDescriptionRead,
+                        _RailAction.share => isShared,
+                        _RailAction.flag => isReported,
+                        _ => false,
+                      },
+                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
               ],
             ],
@@ -2629,6 +2641,190 @@ class _TooShortNote extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RailFishButton extends StatelessWidget {
+  const _RailFishButton({
+    required this.item,
+    required this.active,
+    required this.phase,
+    required this.isFavorite,
+    required this.isRegistered,
+    required this.onTap,
+    required this.onLongPressDown,
+    required this.onLongPressStart,
+    required this.onLongPressMove,
+    required this.onLongPressEnd,
+    required this.onLongPressCancel,
+    required this.hold,
+    required this.dragX,
+    required this.dragHeld,
+    required this.dragPast,
+    required this.travel,
+    required this.threshold,
+  });
+
+  final _RailAction item;
+  final bool active;
+  final _Phase phase;
+  final bool isFavorite;
+  final bool isRegistered;
+  final VoidCallback? onTap;
+  final GestureLongPressDownCallback? onLongPressDown;
+  final GestureLongPressStartCallback? onLongPressStart;
+  final GestureLongPressMoveUpdateCallback? onLongPressMove;
+  final GestureLongPressEndCallback? onLongPressEnd;
+  final GestureLongPressCancelCallback? onLongPressCancel;
+  final Animation<double> hold;
+  final ValueListenable<double> dragX;
+  final bool dragHeld;
+  final bool dragPast;
+  final double travel;
+  final double threshold;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge(<Listenable>[hold, dragX]),
+      builder: (BuildContext context, Widget? child) {
+        final double rawDx = dragX.value;
+        final double dx = rawDx.abs();
+        final double fill = travel > 0 ? (dx / travel).clamp(0.0, 1.0) : 0.0;
+        final bool reached = dx >= threshold || dragPast;
+        final Brightness b = _C.isDark ? Brightness.dark : Brightness.light;
+        final bool isArmed = dragHeld && phase == _Phase.register;
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPressDown: onLongPressDown,
+          onLongPressStart: onLongPressStart,
+          onLongPressMoveUpdate: onLongPressMove,
+          onLongPressEnd: onLongPressEnd,
+          onLongPressCancel: onLongPressCancel,
+          child: SizedBox(
+            width: 50,
+            height: 50,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: <Widget>[
+                // Capsule track extending to the left attached to the button
+                Positioned(
+                  right: 0,
+                  top: 1,
+                  height: 48,
+                  width: travel + 48,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: isArmed ? 1.0 : 0.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: reached
+                                ? (_C.isDark ? const Color(0xFF38D9A9) : _C.accent)
+                                : (_C.isDark
+                                    ? Colors.white.withValues(alpha: 0.28)
+                                    : _C.accent.withValues(alpha: 0.35)),
+                            width: reached ? 2 : 1,
+                          ),
+                          color: _C.isDark
+                              ? const Color(0xFF131920).withValues(alpha: 0.95)
+                              : const Color(0xFFFFFFFF).withValues(alpha: 0.95),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          children: <Widget>[
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: _C.isDark ? 0.35 : 0.22,
+                                child: Image.asset(
+                                  AppIcons.swipeLeftFor(b),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: FractionallySizedBox(
+                                  widthFactor: fill,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: _C.isDark
+                                            ? <Color>[
+                                                _C.accent.withValues(alpha: 0.15),
+                                                _C.accent.withValues(alpha: 0.85),
+                                              ]
+                                            : <Color>[
+                                                const Color(0xFF38D9A9).withValues(alpha: 0.25),
+                                                _C.accent.withValues(alpha: 0.85),
+                                              ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Center(
+                                child: Text(
+                                  reached ? 'ОТПУСТИ' : 'ЗАПИСАТЬСЯ',
+                                  textAlign: TextAlign.center,
+                                  style: _T.mono(
+                                    9,
+                                    weight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    color: _C.isDark
+                                        ? Colors.white.withValues(alpha: 0.92)
+                                        : _C.ink,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Left indicator icon
+                if (isArmed)
+                  Positioned(
+                    left: -(travel + 20),
+                    child: Icon(
+                      reached ? Icons.check_rounded : Icons.swipe_left_alt_rounded,
+                      size: 18,
+                      color: reached
+                          ? (_C.isDark ? const Color(0xFF38D9A9) : _C.accent)
+                          : _C.muted,
+                    ),
+                  ),
+
+                // The fish button translating horizontally with rawDx inside fixed gesture area
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  child: Transform.translate(
+                    offset: Offset(isArmed ? rawDx : 0, 0),
+                    child: _ActionGlyph(
+                      action: item,
+                      focused: active && _actionFor(phase) == item,
+                      accent: isFavorite || isRegistered,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

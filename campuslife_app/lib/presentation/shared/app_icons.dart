@@ -110,10 +110,10 @@ abstract class AppIcons {
       b == Brightness.dark ? playLight : playDark;
 
   static String swipeLeftFor(Brightness b) =>
-      b == Brightness.dark ? swipeLeftLight : swipeLeftDark;
+      b == Brightness.dark ? swipeLeftDark : swipeLeftLight;
 
   static String swipeRightFor(Brightness b) =>
-      b == Brightness.dark ? swipeRightLight : swipeRightDark;
+      b == Brightness.dark ? swipeRightDark : swipeRightLight;
 
   static String fishHeartFor(Brightness b) =>
       b == Brightness.dark ? fishHeartGlyphLight : fishHeartGlyphDark;
