@@ -14,3 +14,6 @@ __pycache__/
 *.pyc
 *.log
 campuslife_app/deliverables/
+campuslife-data/*.sqlite3-shm
+campuslife-data/*.sqlite3-wal
+campuslife-data/media/

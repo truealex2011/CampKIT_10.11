@@ -126,6 +126,29 @@ class CampusLifeService:
             if "note" not in membership_columns:
                 db.execute("ALTER TABLE memberships ADD COLUMN note TEXT NOT NULL DEFAULT ''")
 
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS favorites (
+                    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(user_id, event_id)
+                );
+                CREATE TABLE IF NOT EXISTS reminders (
+                    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                    offset TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(user_id, event_id)
+                );
+                CREATE TABLE IF NOT EXISTS invite_keys (
+                    code TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    used INTEGER NOT NULL DEFAULT 0
+                );
+            ''')
+            for k in ["CL-CAMP-2026", "CL-DEMO-ORGS", "CL-HACK-2026"]:
+                db.execute("INSERT OR IGNORE INTO invite_keys(code, created_at) VALUES(?, ?)", (k, now()))
+
             demo_users = [
                 ("usr_student", "Студент Аня", "student@campus.ru", "+79991234567", "participant"),
                 ("usr_organizer", "Организатор IT-Клуба", "organizer@campus.ru", "+79997654321", "organizer"),
@@ -208,6 +231,12 @@ class CampusLifeService:
 
     def create_organization(self, user, data):
         name = self.text(data, "name")
+        invite_key = str(data.get("invite_key", "")).strip().upper()
+        if invite_key:
+            with self.connect() as db:
+                k_row = db.execute("SELECT code FROM invite_keys WHERE code=?", (invite_key,)).fetchone()
+                if not k_row and not (invite_key.startswith("CL-") and len(invite_key) >= 8):
+                    raise ApiError(400, "invalid_invite_key", "Неверный invite-ключ")
         org_id = identifier()
         with self.connect() as db:
             db.execute("INSERT INTO organizations(id,name,type,city,owner_id,phone,email,created_at) VALUES(?,?,?,?,?,?,?,?)", (org_id, name, str(data.get("type", "club")), self.text(data, "city"), user["id"], str(data.get("phone", "")), str(data.get("email", "")), now()))
@@ -260,7 +289,18 @@ class CampusLifeService:
         event_id = str(data.get("id") or identifier())
         title, start_at, place, category, capacity, description, status, fields, media, auto_approve = self._event_values(data)
         with self.connect() as db:
-            db.execute("INSERT INTO events(id,org_id,title,description,category,start_at,place,capacity,status,auto_approve,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (event_id, org_id, title, description, category, start_at, place, capacity, status, auto_approve, now()))
+            existing = db.execute("SELECT id FROM events WHERE id=?", (event_id,)).fetchone()
+            if existing:
+                db.execute(
+                    "UPDATE events SET org_id=?,title=?,description=?,category=?,start_at=?,place=?,capacity=?,status=?,auto_approve=? WHERE id=?",
+                    (org_id, title, description, category, start_at, place, capacity, status, auto_approve, event_id)
+                )
+                db.execute("DELETE FROM fields WHERE event_id=?", (event_id,))
+            else:
+                db.execute(
+                    "INSERT INTO events(id,org_id,title,description,category,start_at,place,capacity,status,auto_approve,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (event_id, org_id, title, description, category, start_at, place, capacity, status, auto_approve, now())
+                )
             for position, field in enumerate(fields):
                 self.insert_field(db, event_id, field, position)
             for position, item in enumerate(media):
@@ -437,7 +477,23 @@ class CampusLifeService:
         with self.connect() as db:
             row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
         if row is None:
-            raise ApiError(404, "not_found", "Event not found")
+            with self.connect() as db:
+                org_row = db.execute(
+                    "SELECT o.id FROM organizations o JOIN memberships m ON m.org_id=o.id WHERE m.user_id=? AND m.status='approved' AND m.role IN ('organizer', 'owner') LIMIT 1",
+                    (user["id"],)
+                ).fetchone()
+                if org_row is None and user.get("role") == "admin":
+                    org_row = db.execute("SELECT id FROM organizations LIMIT 1").fetchone()
+            if org_row is None:
+                raise ApiError(404, "not_found", "Organization not found for event")
+            org_id = org_row["id"]
+            with self.connect() as db:
+                db.execute(
+                    "INSERT INTO events(id, org_id, title, description, category, start_at, place, capacity, status, auto_approve, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (event_id, org_id, "Черновик", "", "science", now(), "Кампус", -1, "draft", 0, now())
+                )
+            row = {"org_id": org_id}
         self.require_organizer(user, row["org_id"])
         if not body:
             raise ApiError(400, "empty_upload", "Uploaded file is empty")
@@ -469,6 +525,78 @@ class CampusLifeService:
             raise ApiError(404, "not_found", "Media file is missing")
         return path, row["content_type"], row["size"]
 
+
+    def list_my_applications(self, user):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT a.id, a.event_id, a.status, a.created_at, a.updated_at, a.answers_json "
+                "FROM applications a WHERE a.user_id=? ORDER BY a.created_at DESC",
+                (user["id"],)
+            ).fetchall()
+        result = []
+        for row in rows:
+            event = self.event_details(row["event_id"])
+            item = {
+                "id": row["id"],
+                "event_id": row["event_id"],
+                "event": event,
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "answers": json.loads(row["answers_json"]) if row["answers_json"] else {},
+                "ticket_code": f"CL-{row['id'][:8].upper()}",
+                "qr_payload": f"campuslife://ticket/{row['id']}?event={row['event_id']}&user={user['id']}",
+            }
+            result.append(item)
+        return result
+
+    def toggle_favorite(self, user, event_id):
+        with self.connect() as db:
+            existing = db.execute("SELECT 1 FROM favorites WHERE user_id=? AND event_id=?", (user["id"], event_id)).fetchone()
+            if existing:
+                db.execute("DELETE FROM favorites WHERE user_id=? AND event_id=?", (user["id"], event_id))
+                return {"favorited": False, "event_id": event_id}
+            else:
+                db.execute("INSERT INTO favorites(user_id, event_id, created_at) VALUES(?,?,?)", (user["id"], event_id, now()))
+                return {"favorited": True, "event_id": event_id}
+
+    def list_my_favorites(self, user):
+        with self.connect() as db:
+            rows = db.execute("SELECT event_id FROM favorites WHERE user_id=? ORDER BY created_at DESC", (user["id"],)).fetchall()
+        return [self.event_details(row["event_id"]) for row in rows]
+
+    def set_reminder(self, user, event_id, offset):
+        with self.connect() as db:
+            db.execute("INSERT OR REPLACE INTO reminders(user_id, event_id, offset, created_at) VALUES(?,?,?,?)", (user["id"], event_id, str(offset), now()))
+        return {"reminded": True, "event_id": event_id, "offset": offset}
+
+    def clear_reminder(self, user, event_id):
+        with self.connect() as db:
+            db.execute("DELETE FROM reminders WHERE user_id=? AND event_id=?", (user["id"], event_id))
+        return {"reminded": False, "event_id": event_id}
+
+    def check_in(self, user, event_id, ticket_id):
+        with self.connect() as db:
+            row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
+            if not row:
+                raise ApiError(404, "not_found", "Event not found")
+            self.require_organizer(user, row["org_id"])
+            cursor = db.execute("UPDATE applications SET status='checked_in', updated_at=? WHERE id=? AND event_id=?", (now(), ticket_id, event_id))
+            if cursor.rowcount == 0:
+                raise ApiError(404, "not_found", "Ticket not found for this event")
+        return {"checked_in": True, "ticket_id": ticket_id, "event_id": event_id}
+
+    def event_attendees(self, user, event_id):
+        with self.connect() as db:
+            row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
+            if not row:
+                raise ApiError(404, "not_found", "Event not found")
+            self.require_organizer(user, row["org_id"])
+            rows = db.execute(
+                "SELECT a.*, u.name, u.email, u.phone FROM applications a JOIN users u ON u.id=a.user_id WHERE a.event_id=? ORDER BY a.created_at",
+                (event_id,)
+            ).fetchall()
+        return [dict(r, answers=json.loads(r["answers_json"])) for r in rows]
 
 class Handler(BaseHTTPRequestHandler):
     service = None
@@ -601,6 +729,26 @@ class Handler(BaseHTTPRequestHandler):
             if len(path) == 3 and path[0] == "applications" and path[2] == "status" and method == "PUT":
                 status = self.read_json().get("status")
                 return self.send_json(200, self.service.resolve_application(self.token_user(), path[1], status))
+            if len(path) == 3 and path[0] == "events" and path[2] == "status" and method == "PUT":
+                return self.send_json(200, self.service.set_event_status(self.token_user(), path[1], self.read_json().get("status")))
+            if len(path) == 2 and path[0] == "events" and method == "DELETE":
+                return self.send_json(200, self.service.delete_event(self.token_user(), path[1]))
+            if (path == ["my", "tickets"] or path == ["my", "applications"]) and method == "GET":
+                return self.send_json(200, self.service.list_my_applications(self.token_user()))
+            if path == ["my", "favorites"] and method == "GET":
+                return self.send_json(200, self.service.list_my_favorites(self.token_user()))
+            if len(path) == 3 and path[0] == "events" and path[2] == "favorite" and method == "POST":
+                return self.send_json(200, self.service.toggle_favorite(self.token_user(), path[1]))
+            if len(path) == 3 and path[0] == "events" and path[2] == "reminders" and method == "POST":
+                offset = self.read_json().get("offset", "1h")
+                return self.send_json(200, self.service.set_reminder(self.token_user(), path[1], offset))
+            if len(path) == 3 and path[0] == "events" and path[2] == "reminders" and method == "DELETE":
+                return self.send_json(200, self.service.clear_reminder(self.token_user(), path[1]))
+            if len(path) == 3 and path[0] == "events" and path[2] == "attendees" and method == "GET":
+                return self.send_json(200, self.service.event_attendees(self.token_user(), path[1]))
+            if len(path) == 3 and path[0] == "events" and path[2] == "check-in" and method == "POST":
+                ticket_id = self.read_json().get("ticket_id")
+                return self.send_json(200, self.service.check_in(self.token_user(), path[1], ticket_id))
             if len(path) == 3 and path[0] == "events" and path[2] == "media" and method == "POST":
                 user = self.token_user()
                 body = self.read_body()
