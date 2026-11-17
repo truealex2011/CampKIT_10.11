@@ -26,19 +26,38 @@ class _ParticipantOnboardingState extends State<ParticipantOnboarding> {
   }
 }
 
-abstract final class _C {
-  static const Color paper = Color(0xFFF6F6F3);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color ink = Color(0xFF0D1117);
-  static const Color ink2 = Color(0xFF39424F);
-  static const Color muted = Color(0xFF7B8798);
-  static const Color accent = Color(0xFF0E6B76);
-  static const Color accentSoft = Color(0xFFE7F1F2);
-  static const Color accentLine = Color(0xFFBBD8DB);
-  static const Color hairline = Color(0xFFE4E6E1);
-  static const Color skeleton = Color(0xFFE8EAE5);
-  static const Color bone = Color(0xFFDDDFD9);
-  static const Color shade = Color(0xFFF0F1ED);
+class _C {
+  static bool isDark = false;
+
+  static Color get paper => isDark ? const Color(0xFF090D12) : const Color(0xFFF6F6F3);
+  static Color get surface => isDark ? const Color(0xFF131920) : const Color(0xFFFFFFFF);
+  static Color get ink => isDark ? const Color(0xFFF0F6FC) : const Color(0xFF0D1117);
+  static Color get ink2 => isDark ? const Color(0xFFC9D1D9) : const Color(0xFF39424F);
+  static Color get muted => isDark ? const Color(0xFF8B949E) : const Color(0xFF7B8798);
+  static Color get accent => isDark ? const Color(0xFF1F8895) : const Color(0xFF0E6B76);
+  static Color get accentSoft => isDark ? const Color(0xFF0E3036) : const Color(0xFFE7F1F2);
+  static Color get accentLine => isDark ? const Color(0xFF1D5A64) : const Color(0xFFBBD8DB);
+  static Color get hairline => isDark ? const Color(0xFF21262D) : const Color(0xFFE4E6E1);
+  static Color get skeleton => isDark ? const Color(0xFF161B22) : const Color(0xFFE8EAE5);
+  static Color get bone => isDark ? const Color(0xFF262C34) : const Color(0xFFDDDFD9);
+  static Color get shade => isDark ? const Color(0xFF0D1117) : const Color(0xFFF0F1ED);
+
+  static void sync(BuildContext context) {
+    isDark = Theme.of(context).brightness == Brightness.dark;
+  }
+}
+
+class _OnboardingScrollBehavior extends MaterialScrollBehavior {
+  const _OnboardingScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.unknown,
+  };
 }
 
 abstract final class _R {
@@ -72,7 +91,7 @@ abstract final class _T {
   static TextStyle sans(
     double size, {
     FontWeight weight = FontWeight.w500,
-    Color color = _C.ink,
+    Color? color,
     double height = 1.3,
     double? letterSpacing,
   }) {
@@ -81,7 +100,7 @@ abstract final class _T {
       fontFamilyFallback: _sans,
       fontSize: size,
       fontWeight: weight,
-      color: color,
+      color: color ?? _C.ink,
       height: height,
       letterSpacing: letterSpacing,
     );
@@ -89,7 +108,7 @@ abstract final class _T {
 
   static TextStyle mono(
     double size, {
-    Color color = _C.muted,
+    Color? color,
     FontWeight weight = FontWeight.w600,
     double letterSpacing = 0.8,
     double height = 1.15,
@@ -99,7 +118,7 @@ abstract final class _T {
       fontFamilyFallback: _mono,
       fontSize: size,
       fontWeight: weight,
-      color: color,
+      color: color ?? _C.muted,
       letterSpacing: letterSpacing,
       height: height,
     );
@@ -876,9 +895,12 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    _C.sync(context);
     final double textScale = MediaQuery.textScalerOf(context).scale(1);
-    return Material(
-      color: _C.paper,
+    return ScrollConfiguration(
+      behavior: const _OnboardingScrollBehavior(),
+      child: Material(
+        color: _C.paper,
       child: DefaultTextStyle(
         style: _T.sans(14, color: _C.ink2),
         child: LayoutBuilder(
@@ -906,15 +928,16 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFeed(Size size, double textScale) {
     final _FeedGeometry geo = _FeedGeometry.of(size);
     final bool done = _isDone(_phase);
     return Stack(
       children: <Widget>[
-        const Positioned.fill(child: ColoredBox(color: _C.paper)),
+        Positioned.fill(child: ColoredBox(color: _C.paper)),
         Positioned.fill(
           child: PageView.builder(
             controller: _pages,
@@ -991,27 +1014,50 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
             left: 0,
             right: 0,
             bottom: 150,
-            child: IgnorePointer(
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: const BoxDecoration(
-                    color: _C.surface,
-                    borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
+            child: Center(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _pages.animateToPage(
+                      1,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _C.surface,
+                      borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+                      border: Border.all(color: _C.hairline),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Container(width: 6, height: 6, color: _C.accent),
-                        const SizedBox(width: 7),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _C.accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           'Смахни вверх',
                           style: _T.sans(
-                            12,
+                            12.5,
                             weight: FontWeight.w700,
-                            color: _C.ink2,
+                            color: _C.ink,
                             height: 1.15,
                           ),
                         ),
@@ -1254,11 +1300,23 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                 style: _T.sans(15, weight: FontWeight.w800, letterSpacing: -0.2),
               ),
               const Spacer(),
-              TextButton(
-                onPressed: () => _finish(ParticipantOnboardingResult.skipped),
-                child: Text(
-                  'Пропустить',
-                  style: _T.sans(13, weight: FontWeight.w700, color: _C.muted),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _finish(ParticipantOnboardingResult.skipped),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _C.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.hairline),
+                    ),
+                    child: Text(
+                      'Пропустить',
+                      style: _T.sans(13, weight: FontWeight.w700, color: _C.muted),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1309,11 +1367,23 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                 style: _T.sans(15, weight: FontWeight.w800, letterSpacing: -0.2),
               ),
               const Spacer(),
-              TextButton(
-                onPressed: () => _finish(ParticipantOnboardingResult.skipped),
-                child: Text(
-                  'Пропустить',
-                  style: _T.sans(13, weight: FontWeight.w700, color: _C.muted),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _finish(ParticipantOnboardingResult.skipped),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _C.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.hairline),
+                    ),
+                    child: Text(
+                      'Пропустить',
+                      style: _T.sans(13, weight: FontWeight.w700, color: _C.muted),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1590,22 +1660,34 @@ class _FeedSlide extends StatelessWidget {
               onPageChanged: onMediaChanged,
               itemBuilder: (BuildContext context, int i) {
                 final _SceneKind kind = event.scenes[i];
-                return Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    _SceneArt(kind: kind, dimmed: !active),
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
-                      child: _MediaBadge(
-                        count: event.scenes.length,
-                        index: mediaIndex,
-                        video: kind == _SceneKind.video,
-                        active: active,
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (active && phase == _Phase.media && i < event.scenes.length - 1) {
+                      mediaController.animateToPage(
+                        i + 1,
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      _SceneArt(kind: kind, dimmed: !active),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: _MediaBadge(
+                          count: event.scenes.length,
+                          index: mediaIndex,
+                          video: kind == _SceneKind.video,
+                          active: active,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               },
             ),
@@ -1619,8 +1701,8 @@ class _FeedSlide extends StatelessWidget {
           child: _SkeletonText(reveal: reveal, event: event),
         ),
         Positioned(
-          right: 14,
-          top: math.max(12, geo.mediaHeight - 160),
+          right: 12,
+          top: math.max(12, geo.mediaHeight - 175),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1656,7 +1738,7 @@ class _FeedSlide extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
               ],
             ],
           ),
@@ -1851,11 +1933,9 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
+    return SizedBox(
+      height: 44,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           const _FishMark(size: 22),
           const SizedBox(width: 8),
@@ -1863,24 +1943,32 @@ class _TopBar extends StatelessWidget {
             'CampusLife',
             style: _T.sans(13.5, weight: FontWeight.w800, letterSpacing: -0.2),
           ),
-          const SizedBox(width: 16),
-          _PixelProgress(step: step, total: total, done: done),
           const SizedBox(width: 8),
-          Semantics(
-            button: true,
-            label: 'Пропустить обучение',
-            excludeSemantics: true,
-            child: TextButton(
-              onPressed: onSkip,
-              style: TextButton.styleFrom(
-                minimumSize: const Size(64, 40),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                foregroundColor: _C.muted,
-                tapTargetSize: MaterialTapTargetSize.padded,
+          Expanded(
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _PixelProgress(step: step, total: total, done: done),
               ),
-              child: Text(
-                'Пропустить',
-                style: _T.sans(12.5, weight: FontWeight.w700, color: _C.muted),
+            ),
+          ),
+          const SizedBox(width: 8),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onSkip,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _C.surface.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _C.hairline),
+                ),
+                child: Text(
+                  'Пропустить',
+                  style: _T.sans(12.5, weight: FontWeight.w700, color: _C.muted),
+                ),
               ),
             ),
           ),
@@ -2010,7 +2098,7 @@ class _PrimaryButton extends StatelessWidget {
           child: Container(
             constraints: const BoxConstraints(minHeight: 54),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: _C.accent,
               borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
             ),
@@ -2556,13 +2644,16 @@ class _ActionGlyph extends StatelessWidget {
   final bool focused;
   final bool accent;
 
-  String _iconPath(_RailAction item) => switch (item) {
-    _RailAction.bell => AppIcons.reminderDark,
-    _RailAction.fish => accent ? AppIcons.likeActiveDark : AppIcons.likeDark,
-    _RailAction.info => AppIcons.descriptionDark,
-    _RailAction.share => AppIcons.shareDark,
-    _RailAction.flag => AppIcons.reportDark,
-  };
+  String _iconPath(_RailAction item) {
+    final Brightness b = _C.isDark ? Brightness.dark : Brightness.light;
+    return switch (item) {
+      _RailAction.bell => AppIcons.reminderFor(b),
+      _RailAction.fish => AppIcons.likeFor(b, active: accent),
+      _RailAction.info => AppIcons.descriptionFor(b),
+      _RailAction.share => AppIcons.shareFor(b),
+      _RailAction.flag => AppIcons.reportFor(b),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2580,23 +2671,33 @@ class _ActionGlyph extends StatelessWidget {
       child: AnimatedContainer(
         duration: _D.base,
         curve: _E.main,
-        width: 36,
-        height: 36,
+        width: 50,
+        height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: accent
-              ? _C.accent.withValues(alpha: 0.15)
-              : (focused ? _C.accentSoft : _C.surface.withValues(alpha: 0.95)),
+              ? _C.accent.withValues(alpha: 0.22)
+              : (focused
+                  ? _C.accentSoft
+                  : (_C.isDark
+                      ? const Color(0xFF1E2630)
+                      : _C.surface.withValues(alpha: 0.95))),
           shape: BoxShape.circle,
           border: Border.all(
-            color: focused ? _C.accent : (accent ? _C.accent : _C.hairline),
-            width: focused ? 2 : 1,
+            color: focused
+                ? _C.accent
+                : (accent
+                    ? _C.accent
+                    : (_C.isDark
+                        ? Colors.white.withValues(alpha: 0.22)
+                        : _C.hairline)),
+            width: focused ? 2.5 : 1,
           ),
           boxShadow: focused
               ? [
                   BoxShadow(
-                    color: _C.accent.withValues(alpha: 0.25),
-                    blurRadius: 8,
+                    color: _C.accent.withValues(alpha: 0.45),
+                    blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                 ]
@@ -2604,7 +2705,7 @@ class _ActionGlyph extends StatelessWidget {
         ),
         child: ActionIcon(
           path: _iconPath(item),
-          size: 26,
+          size: 44,
         ),
       ),
     );
@@ -2958,7 +3059,7 @@ class _SheetShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _C.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(_R.sheet)),
       ),
@@ -2971,7 +3072,7 @@ class _SheetShell extends StatelessWidget {
             Container(
               width: 38,
               height: 4,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: _C.hairline,
                 borderRadius: BorderRadius.all(Radius.circular(2)),
               ),
@@ -3622,7 +3723,7 @@ class _ProfileOverlay extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: _C.hairline),
+            Divider(height: 1, color: _C.hairline),
             Expanded(
               child: switch (selected) {
                 _ProfileTab.tickets => _ProfileTickets(
@@ -4023,7 +4124,7 @@ class _Avatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _C.surface,
         shape: BoxShape.circle,
         border: Border.fromBorderSide(BorderSide(color: _C.hairline)),
@@ -4126,7 +4227,7 @@ class _SearchOverlay extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: _C.surface,
                 borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
               ),
@@ -4274,7 +4375,7 @@ class _ChipButton extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(minHeight: 38),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: _C.surface,
             borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
           ),
@@ -4635,7 +4736,7 @@ class _MetaPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _C.surface,
         borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
       ),
@@ -4654,7 +4755,7 @@ class _FinaleSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _C.surface,
         borderRadius: BorderRadius.all(Radius.circular(_R.card)),
       ),
@@ -4773,7 +4874,7 @@ class _ContentBlock extends StatelessWidget {
           children: <Widget>[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: _C.accentSoft,
                 borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
               ),
@@ -4850,7 +4951,7 @@ class _TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _C.surface,
         borderRadius: BorderRadius.all(Radius.circular(22)),
         boxShadow: <BoxShadow>[
@@ -4915,7 +5016,7 @@ class _TicketCard extends StatelessWidget {
                       width: 62,
                       height: 62,
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: _C.paper,
                         borderRadius: BorderRadius.all(Radius.circular(10)),
                       ),
@@ -4934,7 +5035,7 @@ class _TicketCard extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: _C.paper,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
             ),
@@ -5005,7 +5106,7 @@ class _Perforation extends StatelessWidget {
                 child: Container(
                   width: 18,
                   height: 18,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: _C.paper,
                     shape: BoxShape.circle,
                   ),
@@ -5017,7 +5118,7 @@ class _Perforation extends StatelessWidget {
                 child: Container(
                   width: 18,
                   height: 18,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: _C.paper,
                     shape: BoxShape.circle,
                   ),

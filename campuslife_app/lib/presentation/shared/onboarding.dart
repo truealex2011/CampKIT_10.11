@@ -438,10 +438,11 @@ class _OnboardingStep {
 
 /// Opens the interactive participant onboarding walkthrough.
 Future<void> showOnboarding(BuildContext context) async {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
   await Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => Scaffold(
-        backgroundColor: const Color(0xFFF6F6F3),
+        backgroundColor: isDark ? const Color(0xFF090D12) : const Color(0xFFF6F6F3),
         body: ParticipantOnboarding(
           onFinished: (result) async {
             await completeOnboarding();
