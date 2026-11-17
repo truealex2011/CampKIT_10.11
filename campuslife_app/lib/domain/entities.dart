@@ -355,6 +355,7 @@ class Registration {
     required this.userId,
     required this.createdAt,
     this.checkedInAt,
+    this.status = 'approved',
   });
 
   final String id;
@@ -362,8 +363,9 @@ class Registration {
   final String userId;
   final DateTime createdAt;
   final DateTime? checkedInAt;
+  final String status;
 
-  bool get isCheckedIn => checkedInAt != null;
+  bool get isCheckedIn => checkedInAt != null || status == 'checked_in';
 
   String get ticketCode => '$eventId:$userId';
 }

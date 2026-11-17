@@ -19,6 +19,15 @@ class TicketCard extends StatelessWidget {
     final event = bundle.event;
     final code = bundle.registration.ticketCode;
     final came = bundle.registration.isCheckedIn;
+    final regStatus = bundle.registration.status.toLowerCase();
+    final (statusLabel, statusDot) = came
+        ? ('пришёл', context.colors.accent)
+        : switch (regStatus) {
+            'approved' => ('одобрено', context.colors.accent),
+            'pending' => ('на рассмотрении', context.colors.gold),
+            'rejected' => ('отклонено', Palette.rose),
+            _ => ('ожидает', context.colors.gold),
+          };
     return GlassCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -41,8 +50,8 @@ class TicketCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               RoleChip(
-                label: came ? 'пришёл' : 'ожидает',
-                dot: came ? context.colors.accent : context.colors.gold,
+                label: statusLabel,
+                dot: statusDot,
               ),
             ],
           ),
@@ -52,6 +61,19 @@ class TicketCard extends StatelessWidget {
             ' · ${event.place.isEmpty ? 'место не указано' : event.place}',
             style: Fonts.sansStyle(size: 12, color: context.colors.muted),
           ),
+          if (regStatus == 'pending') ...[
+            const SizedBox(height: 6),
+            Text(
+              'Заявка ожидает подтверждения организатора.',
+              style: Fonts.sansStyle(size: 11.5, color: context.colors.gold),
+            ),
+          ] else if (regStatus == 'rejected') ...[
+            const SizedBox(height: 6),
+            Text(
+              'Организатор отклонил эту заявку.',
+              style: Fonts.sansStyle(size: 11.5, color: Palette.rose),
+            ),
+          ],
           const SizedBox(height: 14),
           const PixelProgress(value: 1, cells: 24),
           const SizedBox(height: 14),

@@ -24,25 +24,6 @@ Path buildFishPath([double wiggle = 0]) {
     ..addPath(tail, Offset.zero);
 }
 
-Path buildHeartPath(Offset c, double s) => Path()
-  ..moveTo(c.dx, c.dy + s * 0.38)
-  ..cubicTo(
-    c.dx - s * 0.55,
-    c.dy - s * 0.02,
-    c.dx - s * 0.36,
-    c.dy - s * 0.5,
-    c.dx,
-    c.dy - s * 0.2,
-  )
-  ..cubicTo(
-    c.dx + s * 0.36,
-    c.dy - s * 0.5,
-    c.dx + s * 0.55,
-    c.dy - s * 0.02,
-    c.dx,
-    c.dy + s * 0.38,
-  );
-
 void paintFish(
   Canvas canvas,
   Offset at,
@@ -81,49 +62,6 @@ class FishHeartIcon extends StatelessWidget {
       size: size,
     ),
   );
-}
-
-class _FishHeartPainter extends CustomPainter {
-  _FishHeartPainter({
-    required this.filled,
-    required this.color,
-    required this.heartColor,
-  });
-
-  final bool filled;
-  final Color color;
-  final Color heartColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 24);
-    final fish = buildFishPath();
-    final heart = buildHeartPath(const Offset(10, 12.4), 7.5);
-    if (filled) {
-      canvas.drawPath(fish, Paint()..color = color);
-      canvas.drawPath(heart, Paint()..color = heartColor);
-    } else {
-      canvas.drawPath(
-        fish,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.7
-          ..strokeJoin = StrokeJoin.round,
-      );
-      canvas.drawPath(
-        heart,
-        Paint()
-          ..color = heartColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _FishHeartPainter old) =>
-      old.filled != filled || old.color != color || old.heartColor != heartColor;
 }
 
 class FishLoader extends StatefulWidget {

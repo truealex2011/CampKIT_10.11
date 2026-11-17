@@ -563,7 +563,6 @@ class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({
     this.icon,
     this.iconPath,
-    this.glyph,
     required this.onTap,
     this.size = 48,
     this.active = false,
@@ -571,7 +570,6 @@ class _RoundIconButton extends StatelessWidget {
 
   final IconData? icon;
   final String? iconPath;
-  final Widget? glyph;
   final VoidCallback? onTap;
   final double size;
   final bool active;
@@ -608,18 +606,17 @@ class _RoundIconButton extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Center(
-              child: glyph ??
-                  (iconPath != null
-                      ? ActionIcon(path: iconPath!, size: size)
-                      : Icon(
-                          icon,
-                          size: size * 0.46,
-                          color: active
-                              ? (isDark ? Colors.white : Palette.darkAccent)
-                              : (isDark
-                                  ? Colors.white.withValues(alpha: 0.92)
-                                  : Palette.darkAccent.withValues(alpha: 0.92)),
-                        )),
+              child: iconPath != null
+                  ? ActionIcon(path: iconPath!, size: size, fit: BoxFit.cover)
+                  : Icon(
+                      icon,
+                      size: size * 0.46,
+                      color: active
+                          ? (isDark ? Colors.white : Palette.darkAccent)
+                          : (isDark
+                              ? Colors.white.withValues(alpha: 0.92)
+                              : Palette.darkAccent.withValues(alpha: 0.92)),
+                    ),
             ),
           ),
         ),
@@ -1083,7 +1080,8 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                                             b,
                                             active: true,
                                           ),
-                                          size: 46,
+                                          size: 50,
+                                          fit: BoxFit.cover,
                                         ),
                                       ),
                                     ),

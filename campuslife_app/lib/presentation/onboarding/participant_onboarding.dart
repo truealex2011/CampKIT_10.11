@@ -328,7 +328,6 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
   bool _overlayVisible = false;
   bool _overlayClosing = false;
   bool _introStarted = false;
-  bool _mountedExit = false;
 
   int _feedIndex = 0;
   final Map<int, int> _mediaIndex = <int, int>{0: 0, 1: 0};
@@ -757,18 +756,6 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     _scheduleResume();
   }
 
-  void _showEvent(int index) {
-    if (index < 0 || index >= _events.length) return;
-    if (index == _feedIndex) return;
-    _stopDemo();
-    setState(() => _feedIndex = index);
-    if (_phase == _Phase.swipeFeed) {
-      _setPhase(_Phase.media);
-    } else {
-      _syncDemo();
-    }
-  }
-
   void _jumpTo(int index) {
     if (index < 0 || index >= _events.length) return;
     if (index == _feedIndex) return;
@@ -1105,6 +1092,9 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               step: _stepNumber,
               total: _stepCount,
               done: done,
+              phase: _phase,
+              onSearchPressed: _onSearchPressed,
+              onProfilePressed: _onProfilePressed,
               onSkip: () => _finish(ParticipantOnboardingResult.skipped),
             ),
           ),
@@ -1257,7 +1247,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     final int count = _events[_feedIndex].scenes.length;
     if (current >= count - 1) return;
     _stopDemo();
-    _mediaControllers[_feedIndex]!.animateToPage(
+    _mediaControllers[_feedIndex].animateToPage(
       current + 1,
       duration: _D.express,
       curve: _E.soft,
@@ -1521,7 +1511,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
 
   void _copyDemoLink() {
     if (_shared) return;
-    final realUrl = Uri.base.toString().split('#').first + '#/events/ev_1';
+    final realUrl = '${Uri.base.toString().split('#').first}#/events/ev_1';
     unawaited(Clipboard.setData(ClipboardData(text: realUrl)));
     _complete(_Phase.share);
   }
@@ -1936,26 +1926,66 @@ class _TopBar extends StatelessWidget {
     required this.total,
     required this.done,
     required this.onSkip,
+    this.phase,
+    this.onSearchPressed,
+    this.onProfilePressed,
   });
 
   final int step;
   final int total;
   final bool done;
   final VoidCallback onSkip;
+  final _Phase? phase;
+  final VoidCallback? onSearchPressed;
+  final VoidCallback? onProfilePressed;
 
   @override
   Widget build(BuildContext context) {
+    final bool isSearchPhase = phase == _Phase.search;
+    final bool isProfilePhase = phase == _Phase.profile || phase == _Phase.settings;
     return SizedBox(
       height: 44,
       child: Row(
         children: <Widget>[
+          if (isProfilePhase && onProfilePressed != null) ...[
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onProfilePressed,
+                child: AnimatedContainer(
+                  duration: _D.base,
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _C.accentSoft,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _C.accent, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _C.accent.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 17,
+                    color: _C.accent,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
           const _FishMark(size: 22),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Text(
             'CampusLife',
             style: _T.sans(13.5, weight: FontWeight.w800, letterSpacing: -0.2),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(
             child: Center(
               child: FittedBox(
@@ -1964,14 +1994,46 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+          if (isSearchPhase && onSearchPressed != null) ...[
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onSearchPressed,
+                child: AnimatedContainer(
+                  duration: _D.base,
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _C.accentSoft,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _C.accent, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _C.accent.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.search_rounded,
+                    size: 17,
+                    color: _C.accent,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
           MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onSkip,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: _C.surface.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(8),
@@ -1979,7 +2041,7 @@ class _TopBar extends StatelessWidget {
                 ),
                 child: Text(
                   'Пропустить',
-                  style: _T.sans(12.5, weight: FontWeight.w700, color: _C.muted),
+                  style: _T.sans(12, weight: FontWeight.w700, color: _C.muted),
                 ),
               ),
             ),
@@ -2174,46 +2236,6 @@ class _FocusedAction extends StatelessWidget {
   final GestureLongPressCancelCallback onLongPressCancel;
   final VoidCallback onNext;
 
-  String get _label {
-    if (done) {
-      return phase == _Phase.settings ? 'Завершить обучение' : 'Далее';
-    }
-    return switch (phase) {
-      _Phase.swipeFeed => 'Смахни вверх',
-      _Phase.media => 'Пролистай медиа',
-      _Phase.favorite => 'Сохрани в избранное',
-      _Phase.register => 'Записаться на событие',
-      _Phase.reminder => 'Напомнить',
-      _Phase.description => 'Описание',
-      _Phase.share => 'Поделиться',
-      _Phase.report => 'Жалоба',
-      _Phase.search => 'Поиск',
-      _Phase.profile => 'Профиль',
-      _Phase.settings => 'Настройки',
-      _Phase.intro => 'Начать',
-      _Phase.finale => 'Готово',
-    };
-  }
-
-  String get _semanticLabel {
-    if (done) return _label;
-    return switch (phase) {
-      _Phase.swipeFeed => 'Сменить событие',
-      _Phase.media => 'Следующее медиа',
-      _Phase.favorite => 'Рыбка: добавить в избранное',
-      _Phase.register => 'Рыбка: удержание и свайп влево для записи',
-      _Phase.reminder => 'Напомнить о событии',
-      _Phase.description => 'Описание события',
-      _Phase.share => 'Поделиться событием',
-      _Phase.report => 'Пожаловаться на событие',
-      _Phase.search => 'Поиск',
-      _Phase.profile => 'Профиль',
-      _Phase.settings => 'Настройки профиля',
-      _Phase.intro => 'Начать обучение',
-      _Phase.finale => 'Перейти к событиям',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final bool canProceed = done || phase == _Phase.intro;
@@ -2309,90 +2331,6 @@ class _FocusedAction extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(size.width / 2, size.height / 2),
-        radius: size.width * 0.46,
-      ),
-      -math.pi / 2,
-      math.pi * 2 * _saturate(progress),
-      false,
-      Paint()
-        ..color = _C.surface
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter old) => old.progress != progress;
-}
-
-class _KnobPainter extends CustomPainter {
-  const _KnobPainter({required this.progress, required this.past});
-
-  final double progress;
-  final bool past;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset.zero & size;
-    canvas.drawCircle(
-      rect.center,
-      size.width / 2,
-      Paint()..color = _C.surface.withValues(alpha: past ? 1 : 0.22),
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: rect.center, radius: size.width / 2 - 2),
-      -math.pi / 2,
-      math.pi * 2 * _saturate(progress),
-      false,
-      Paint()
-        ..color = _C.surface
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _KnobPainter old) =>
-      old.progress != progress || old.past != past;
-}
-
-class _ArrowLeftPainter extends CustomPainter {
-  const _ArrowLeftPainter({required this.color, required this.opacity});
-
-  final Color color;
-  final double opacity;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color.withValues(alpha: _saturate(opacity))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final Path path = Path()
-      ..moveTo(size.width * 0.66, size.height * 0.26)
-      ..lineTo(size.width * 0.36, size.height * 0.5)
-      ..lineTo(size.width * 0.66, size.height * 0.74);
-    canvas.drawPath(path, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArrowLeftPainter old) => old.opacity != opacity;
 }
 
 class _SkeletonText extends StatelessWidget {
@@ -2871,24 +2809,11 @@ class _ActionGlyph extends StatelessWidget {
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: accent
-              ? _C.accent.withValues(alpha: 0.22)
-              : (focused
-                  ? _C.accentSoft
-                  : (_C.isDark
-                      ? const Color(0xFF1E2630)
-                      : _C.surface.withValues(alpha: 0.95))),
+          color: Colors.transparent,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: focused
-                ? _C.accent
-                : (accent
-                    ? _C.accent
-                    : (_C.isDark
-                        ? Colors.white.withValues(alpha: 0.22)
-                        : _C.hairline)),
-            width: focused ? 2.5 : 1,
-          ),
+          border: focused
+              ? Border.all(color: _C.accent, width: 2.5)
+              : null,
           boxShadow: focused
               ? [
                   BoxShadow(
@@ -2901,81 +2826,12 @@ class _ActionGlyph extends StatelessWidget {
         ),
         child: ActionIcon(
           path: _iconPath(item),
-          size: 44,
+          size: 50,
+          fit: BoxFit.cover,
         ),
       ),
     );
   }
-}
-
-class _RailGlyphPainter extends CustomPainter {
-  const _RailGlyphPainter({required this.action, required this.color});
-
-  final _RailAction action;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round;
-    switch (action) {
-      case _RailAction.bell:
-        canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.46), size.width * 0.28, stroke);
-        canvas.drawLine(
-          Offset(size.width * 0.42, size.height * 0.76),
-          Offset(size.width * 0.58, size.height * 0.76),
-          stroke,
-        );
-      case _RailAction.fish:
-        canvas.drawRect(
-          Rect.fromLTWH(size.width * 0.2, size.height * 0.36, size.width * 0.5, size.height * 0.28),
-          stroke,
-        );
-        canvas.drawLine(
-          Offset(size.width * 0.7, size.height * 0.5),
-          Offset(size.width * 0.9, size.height * 0.34),
-          stroke,
-        );
-      case _RailAction.info:
-        canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.4, stroke);
-        canvas.drawLine(
-          Offset(size.width / 2, size.height * 0.44),
-          Offset(size.width / 2, size.height * 0.7),
-          stroke,
-        );
-      case _RailAction.share:
-        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.26), size.width * 0.12, stroke);
-        canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.5), size.width * 0.12, stroke);
-        canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.74), size.width * 0.12, stroke);
-        canvas.drawLine(
-          Offset(size.width * 0.38, size.height * 0.44),
-          Offset(size.width * 0.62, size.height * 0.3),
-          stroke,
-        );
-        canvas.drawLine(
-          Offset(size.width * 0.38, size.height * 0.56),
-          Offset(size.width * 0.62, size.height * 0.7),
-          stroke,
-        );
-      case _RailAction.flag:
-        canvas.drawLine(
-          Offset(size.width * 0.32, size.height * 0.18),
-          Offset(size.width * 0.32, size.height * 0.84),
-          stroke,
-        );
-        canvas.drawRect(
-          Rect.fromLTWH(size.width * 0.32, size.height * 0.22, size.width * 0.4, size.height * 0.3),
-          stroke,
-        );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RailGlyphPainter old) =>
-      old.color != color || old.action != action;
 }
 
 class _HandPainter extends CustomPainter {
@@ -3094,147 +2950,6 @@ class _HandPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _HandPainter old) =>
       old.t != t || old.kind != kind || old.size != size;
-}
-
-class _HoldTrack extends StatelessWidget {
-  const _HoldTrack({
-    required this.hold,
-    required this.dragX,
-    required this.travel,
-    required this.threshold,
-    required this.past,
-    required this.ready,
-  });
-
-  final Animation<double> hold;
-  final ValueListenable<double> dragX;
-  final double travel;
-  final double threshold;
-  final bool past;
-  final bool ready;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[hold, dragX]),
-      builder: (BuildContext context, Widget? child) {
-        final double holdValue = _saturate(hold.value);
-        final double dx = dragX.value;
-        final double width = travel * 1.16;
-        return SizedBox(
-          width: width,
-          height: 54,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-                  border: Border.all(color: _C.hairline),
-                ),
-                child: Text(
-                  !ready ? 'Удерживай' : (past ? 'Отпусти' : 'Веди влево'),
-                  style: _T.sans(
-                    10.5,
-                    weight: FontWeight.w800,
-                    color: _C.accent,
-                    height: 1.1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: CustomPaint(
-                  size: Size(width, 30),
-                  painter: _TrackPainter(
-                    progress: holdValue,
-                    drag: dx,
-                    travel: travel,
-                    threshold: threshold,
-                    ready: ready,
-                    past: past,
-                    width: width,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _TrackPainter extends CustomPainter {
-  const _TrackPainter({
-    required this.progress,
-    required this.drag,
-    required this.travel,
-    required this.threshold,
-    required this.ready,
-    required this.past,
-    required this.width,
-  });
-
-  final double progress;
-  final double drag;
-  final double travel;
-  final double threshold;
-  final bool ready;
-  final bool past;
-  final double width;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double midY = size.height / 2;
-    final Rect track = Rect.fromLTWH(0, midY - 6, size.width, 12);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(track, const Radius.circular(6)),
-      Paint()..color = _C.ink.withValues(alpha: 0.06),
-    );
-    final double scale = track.width / (travel * 1.16);
-    final double thresholdX = track.right - threshold * scale;
-    canvas.drawRect(
-      Rect.fromLTWH(thresholdX - 1, track.top - 4, 2, 20),
-      Paint()..color = _C.ink.withValues(alpha: 0.28),
-    );
-    final double filled = (-drag).clamp(0.0, travel) * scale;
-    if (filled > 0) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(track.right - filled, track.top, filled, 12),
-          const Radius.circular(6),
-        ),
-        Paint()..color = (past ? _C.accent : _C.accentLine),
-      );
-    }
-    if (!ready) {
-      canvas.drawRect(
-        Rect.fromLTWH(track.left, midY - 2, track.width * progress, 4),
-        Paint()..color = _C.accent.withValues(alpha: 0.5),
-      );
-    }
-    final double knobX = track.right + drag * 0.92;
-    canvas.drawCircle(
-      Offset(knobX, midY),
-      9,
-      Paint()..color = past ? _C.accent : _C.ink,
-    );
-    canvas.drawCircle(
-      Offset(knobX, midY),
-      3.6,
-      Paint()..color = _C.surface,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrackPainter old) =>
-      old.progress != progress ||
-      old.drag != drag ||
-      old.ready != ready ||
-      old.past != past;
 }
 
 class _SheetShell extends StatelessWidget {
@@ -3678,7 +3393,7 @@ class _ShareSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final realUrl = Uri.base.toString().split('#').first + '#/events/ev_1';
+    final realUrl = '${Uri.base.toString().split('#').first}#/events/ev_1';
     return _SheetShell(
       eyebrow: 'ПОДЕЛИТЬСЯ',
       title: 'Пригласи друзей',
@@ -5372,32 +5087,4 @@ class _PixelQrPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _ArrowDownPainter extends CustomPainter {
-  const _ArrowDownPainter({required this.color});
 
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint stroke = Paint()
-      ..color = color
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawLine(
-      Offset(size.width * 0.5, size.height * 0.14),
-      Offset(size.width * 0.5, size.height * 0.84),
-      stroke,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width * 0.24, size.height * 0.58)
-        ..lineTo(size.width * 0.5, size.height * 0.86)
-        ..lineTo(size.width * 0.76, size.height * 0.58),
-      stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArrowDownPainter old) => old.color != color;
-}
