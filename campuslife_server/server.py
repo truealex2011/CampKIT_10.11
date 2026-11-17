@@ -126,6 +126,19 @@ class CampusLifeService:
             if "note" not in membership_columns:
                 db.execute("ALTER TABLE memberships ADD COLUMN note TEXT NOT NULL DEFAULT ''")
 
+            demo_users = [
+                ("usr_student", "Студент Аня", "student@campus.ru", "+79991234567", "participant"),
+                ("usr_organizer", "Организатор IT-Клуба", "organizer@campus.ru", "+79997654321", "organizer"),
+                ("usr_admin", "Администратор", "admin@campus.ru", "+79990000000", "admin"),
+            ]
+            for uid, uname, uemail, uphone, urole in demo_users:
+                existing = db.execute("SELECT id FROM users WHERE email=?", (uemail,)).fetchone()
+                if not existing:
+                    db.execute(
+                        "INSERT INTO users(id,name,email,phone,password_hash,role,created_at) VALUES(?,?,?,?,?,?,?)",
+                        (uid, uname, uemail, uphone, self.password_hash("password123"), urole, now()),
+                    )
+
     def password_hash(self, password, salt=None):
         salt = salt or secrets.token_hex(16)
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), 240000)
