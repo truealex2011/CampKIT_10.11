@@ -142,13 +142,23 @@ class EntryRoute extends ConsumerWidget {
         }
       },
       onJoinRequest: (intent) async {
-        final user = ref.read(sessionProvider);
-        if (user == null) return 'Сначала войди в аккаунт';
         try {
+          var user = ref.read(sessionProvider);
+          if (user == null && intent.email != null && intent.password != null) {
+            user = await ref.read(sessionProvider.notifier).registerParticipant(
+              name: intent.name?.isNotEmpty == true ? intent.name! : 'Участник',
+              email: intent.email!,
+              phone: intent.phone ?? '',
+              password: intent.password!,
+            );
+          }
+          if (user == null) return 'Заполните регистрационные данные для вступления';
           await ref
               .read(repositoryProvider)
-              .requestMembership(intent.orgId, user.id);
-          return 'Заявка отправлена владельцу организации';
+              .requestMembership(intent.orgId, user.id, note: intent.note ?? '');
+          if (!context.mounted) return null;
+          Navigator.of(context).pushReplacementNamed(AppRoutes.gate);
+          return null;
         } on AppException catch (e) {
           return e.message;
         }

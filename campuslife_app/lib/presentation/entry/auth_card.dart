@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../../domain/repositories.dart';
+import '../shared/code_verification.dart';
 import '../shared/kit.dart';
 import 'entry_widgets.dart';
 
@@ -28,9 +29,21 @@ class ParticipantSignup {
 }
 
 class JoinIntent {
-  const JoinIntent({required this.orgId});
+  const JoinIntent({
+    required this.orgId,
+    this.name,
+    this.email,
+    this.phone,
+    this.password,
+    this.note,
+  });
 
   final String orgId;
+  final String? name;
+  final String? email;
+  final String? phone;
+  final String? password;
+  final String? note;
 }
 
 typedef LoginSubmit = Future<String?> Function(LoginIntent intent);
@@ -356,6 +369,24 @@ class _MemberFormState extends State<_MemberForm> {
   Future<void> _submit() async {
     if (_busy || !_check()) return;
     setState(() => _busy = true);
+    final emailOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение почты',
+      description: 'Введите код, отправленный на ${_email.text.trim()} (демо: 0000)',
+    );
+    if (!emailOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
+    final phoneOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение телефона',
+      description: 'Введите SMS-код, отправленный на ${_phone.text.trim()} (демо: 0000)',
+    );
+    if (!phoneOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
     final failure = await widget.onSubmit(
       ParticipantSignup(
         name: _name.text.trim(),
@@ -541,6 +572,24 @@ class _OrgWizardState extends State<_OrgWizard> {
   Future<void> _submit() async {
     if (_busy || !_validateStep()) return;
     setState(() => _busy = true);
+    final emailOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение почты',
+      description: 'Введите код, отправленный на ${_email.text.trim()} (демо: 0000)',
+    );
+    if (!emailOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
+    final phoneOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение телефона',
+      description: 'Введите SMS-код, отправленный на ${_phone.text.trim()} (демо: 0000)',
+    );
+    if (!phoneOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
     final failure = await widget.onSubmit(
       OrganizerSignup(
         inviteKey: _key.text.trim().toUpperCase(),
@@ -716,35 +765,95 @@ class _JoinForm extends StatefulWidget {
 
 class _JoinFormState extends State<_JoinForm> {
   final TextEditingController _orgId = TextEditingController();
-  String? _error;
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _phone = TextEditingController();
+  final TextEditingController _password = TextEditingController();
+  final TextEditingController _note = TextEditingController();
+  final Map<String, String> _errors = {};
   bool _busy = false;
 
   @override
   void dispose() {
     _orgId.dispose();
+    _name.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _password.dispose();
+    _note.dispose();
     super.dispose();
+  }
+
+  bool _check() {
+    final errors = <String, String>{};
+    final org = _orgId.text.trim().toLowerCase();
+    if (!Formats.orgId.hasMatch(org)) {
+      errors['orgId'] = 'id начинается с org, возьми его из карточки организации';
+    }
+    if (_name.text.trim().length < 2) {
+      errors['name'] = 'Введи хотя бы 2 буквы';
+    }
+    if (!Formats.email.hasMatch(_email.text.trim())) {
+      errors['email'] = 'Нужен валидный адрес почты';
+    }
+    if (!Formats.phone.hasMatch(_phone.text.trim())) {
+      errors['phone'] = 'Формат: +7 900 123-45-67';
+    }
+    if (_password.text.length < 6) {
+      errors['password'] = 'Минимум 6 символов';
+    }
+    setState(() {
+      _errors
+        ..clear()
+        ..addAll(errors);
+    });
+    return errors.isEmpty;
   }
 
   Future<void> _submit() async {
     if (_busy) return;
-    final value = _orgId.text.trim().toLowerCase();
-    if (!Formats.orgId.hasMatch(value)) {
-      setState(
-        () =>
-            _error = 'id начинается с org, возьми его из карточки организации',
-      );
+    final org = _orgId.text.trim().toLowerCase();
+    if (!Formats.orgId.hasMatch(org)) {
+      setState(() => _errors['orgId'] = 'id начинается с org, возьми его из карточки организации');
       return;
     }
-    setState(() {
-      _error = null;
-      _busy = true;
-    });
-    final failure = await widget.onSubmit(JoinIntent(orgId: value));
+    if (!_check()) return;
+    setState(() => _busy = true);
+
+    final emailOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение почты',
+      description: 'Введите код, отправленный на ${_email.text.trim()} (демо: 0000)',
+    );
+    if (!emailOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
+    final phoneOk = await CodeVerificationDialog.show(
+      context,
+      title: 'Подтверждение телефона',
+      description: 'Введите SMS-код, отправленный на ${_phone.text.trim()} (демо: 0000)',
+    );
+    if (!phoneOk || !mounted) {
+      setState(() => _busy = false);
+      return;
+    }
+
+    final failure = await widget.onSubmit(
+      JoinIntent(
+        orgId: org,
+        name: _name.text.trim(),
+        email: _email.text.trim(),
+        phone: _phone.text.trim(),
+        password: _password.text,
+        note: _note.text.trim(),
+      ),
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     ToastController.show(
       context,
-      failure ?? 'Заявка отправлена владельцу',
+      failure ?? 'Заявка и визитка отправлены владельцу организации',
       error: failure != null,
     );
   }
@@ -757,13 +866,72 @@ class _JoinFormState extends State<_JoinForm> {
         controller: _orgId,
         hint: 'org_1',
         icon: Icons.tag,
-        error: _error,
-        onChanged: (_) => setState(() => _error = null),
+        error: _errors['orgId'],
+        onChanged: (_) => setState(() => _errors.remove('orgId')),
+      ),
+      AnimatedSize(
+        duration: const Duration(milliseconds: 260),
+        curve: Palette.ease,
+        alignment: Alignment.topCenter,
+        child: _orgId.text.trim().isNotEmpty
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 6),
+                  const DividerLabel('Визитка и регистрация', top: 4),
+                  GlassField(
+                    label: 'Имя и фамилия',
+                    controller: _name,
+                    hint: 'Алексей Петров',
+                    icon: Icons.person_outline_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    error: _errors['name'],
+                    onChanged: (_) => setState(() => _errors.remove('name')),
+                  ),
+                  GlassField(
+                    label: 'Почта',
+                    controller: _email,
+                    hint: 'me@example.com',
+                    icon: Icons.alternate_email_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    error: _errors['email'],
+                    onChanged: (_) => setState(() => _errors.remove('email')),
+                  ),
+                  GlassField(
+                    label: 'Телефон',
+                    controller: _phone,
+                    hint: '+7 900 123-45-67',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    error: _errors['phone'],
+                    onChanged: (_) => setState(() => _errors.remove('phone')),
+                  ),
+                  GlassField(
+                    label: 'Пароль для входа',
+                    controller: _password,
+                    hint: 'минимум 6 символов',
+                    icon: Icons.lock_outline_rounded,
+                    obscure: true,
+                    error: _errors['password'],
+                    onChanged: (_) => setState(() => _errors.remove('password')),
+                  ),
+                  GlassField(
+                    label: 'О себе / визитка',
+                    controller: _note,
+                    hint: 'Курс, навыки, почему хочешь в команду...',
+                    icon: Icons.badge_outlined,
+                    maxLines: 2,
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                ],
+              )
+            : const SizedBox.shrink(),
       ),
       PrimaryButton(label: 'Отправить заявку', busy: _busy, onPressed: _submit),
       const NoteBlock(
         lead: 'Ключ не нужен',
-        text: '— заявку одобряет владелец организации в своём профиле.',
+        text: '— заявку и визитку одобряет владелец организации в своём профиле.',
       ),
     ],
   );

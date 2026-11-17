@@ -7,7 +7,9 @@ import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../entry/entry_widgets.dart';
 import '../shared/app_routes.dart';
+import '../shared/event_preview_screen.dart';
 import '../shared/fish.dart';
+import '../shared/glass_sheet.dart';
 import '../shared/kit.dart';
 import '../shared/ocean/ocean_providers.dart';
 import 'checkin_screen.dart';
@@ -308,6 +310,11 @@ class _EventCard extends ConsumerWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              GhostButton(
+                label: 'Посмотреть',
+                icon: Icons.visibility_outlined,
+                onPressed: () => EventPreviewScreen.show(context, event),
+              ),
               if (event.status != EventStatus.cancelled)
                 GhostButton(
                   label: 'Редактировать',
@@ -504,35 +511,120 @@ class _ApplicationCard extends ConsumerWidget {
   final EventApplication application;
   final CampusEvent event;
 
+  void _openDetails(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => GlassSheet(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.mail_outline_rounded, size: 24, color: Palette.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Анкета: ${application.applicantName}',
+                      style: Fonts.sansStyle(size: 18, weight: 700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('Почта: ${application.applicantEmail}', style: Fonts.sansStyle(size: 13, color: Palette.muted)),
+              if (application.applicantPhone.isNotEmpty)
+                Text('Телефон: ${application.applicantPhone}', style: Fonts.sansStyle(size: 13, color: Palette.muted)),
+              Text('Отправлено: ${RuFmt.dateTime(application.createdAt)}', style: Fonts.sansStyle(size: 12, color: Palette.muted)),
+              const DividerLabel('Ответы на вопросы', top: 12),
+              for (final field in event.fields)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(field.label, style: Fonts.sansStyle(size: 13, weight: 600)),
+                      const SizedBox(height: 2),
+                      Text(application.answers[field.id] ?? '—', style: Fonts.sansStyle(size: 13.5, color: Palette.ink2)),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 14),
+              if (application.status == 'pending')
+                Row(
+                  children: GhostButton.pair(
+                    GhostButton(
+                      label: 'Одобрить заявку',
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _resolve(context, ref, true);
+                      },
+                    ),
+                    GhostButton(
+                      label: 'Отклонить',
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _resolve(context, ref, false);
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(application.applicantName, style: Fonts.sansStyle(size: 14, weight: 700)),
-          Text(application.applicantEmail, style: Fonts.sansStyle(size: 12, color: Palette.muted)),
-          const SizedBox(height: 8),
-          for (final field in event.fields)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 5),
-              child: Text(
-                '${field.label}: ${application.answers[field.id] ?? '—'}',
-                style: Fonts.sansStyle(size: 12.5, color: Palette.ink2),
-              ),
-            ),
-          Text('Статус: ${application.status}', style: Fonts.sansStyle(size: 11, color: Palette.muted)),
-          if (application.status == 'pending') ...[
-            const SizedBox(height: 8),
+      child: InkWell(
+        onTap: () => _openDetails(context, ref),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Row(
-              children: GhostButton.pair(
-                GhostButton(label: 'Одобрить', onPressed: () => _resolve(context, ref, true)),
-                GhostButton(label: 'Отклонить', onPressed: () => _resolve(context, ref, false)),
-              ),
+              children: [
+                Expanded(
+                  child: Text(application.applicantName, style: Fonts.sansStyle(size: 14, weight: 700)),
+                ),
+                RoleChip(
+                  label: application.status == 'approved'
+                      ? 'Одобрено'
+                      : application.status == 'rejected'
+                          ? 'Отклонено'
+                          : 'Ожидает',
+                  dot: application.status == 'approved'
+                      ? Palette.mint
+                      : application.status == 'rejected'
+                          ? Palette.rose
+                          : Palette.gold,
+                ),
+              ],
             ),
+            Text(application.applicantEmail, style: Fonts.sansStyle(size: 12, color: Palette.muted)),
+            const SizedBox(height: 6),
+            Text(
+              'Нажми, чтобы открыть полную анкету с ответами',
+              style: Fonts.sansStyle(size: 11.5, color: Palette.accent),
+            ),
+            if (application.status == 'pending') ...[
+              const SizedBox(height: 8),
+              Row(
+                children: GhostButton.pair(
+                  GhostButton(label: 'Одобрить', onPressed: () => _resolve(context, ref, true)),
+                  GhostButton(label: 'Отклонить', onPressed: () => _resolve(context, ref, false)),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     ),
   );
@@ -585,55 +677,141 @@ class _MemberCard extends ConsumerWidget {
   final String orgId;
   final OrgMember member;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => GlassCard(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.person_search_rounded,
-              size: 16,
-              color: Palette.muted,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                member.userId,
-                style: Fonts.monoStyle(
-                  size: 12.5,
-                  color: Palette.ink,
-                  letterSpacing: 0,
+  void _openCard(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => GlassSheet(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.badge_rounded, size: 24, color: Palette.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Визитка кандидата',
+                      style: Fonts.sansStyle(size: 18, weight: 700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _DetailField(label: 'Имя и фамилия', value: member.name?.isNotEmpty == true ? member.name! : member.userId),
+              if (member.email != null && member.email!.isNotEmpty)
+                _DetailField(label: 'Почта', value: member.email!),
+              if (member.phone != null && member.phone!.isNotEmpty)
+                _DetailField(label: 'Телефон', value: member.phone!),
+              _DetailField(
+                label: 'О себе / визитка',
+                value: member.note.isNotEmpty ? member.note : 'Информация не указана',
+              ),
+              _DetailField(
+                label: 'Дата заявки',
+                value: RuFmt.dateTime(member.requestedAt),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: GhostButton.pair(
+                  GhostButton(
+                    label: 'Принять в команду',
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _resolve(context, ref, true);
+                    },
+                  ),
+                  GhostButton(
+                    label: 'Отклонить',
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _resolve(context, ref, false);
+                    },
+                  ),
                 ),
               ),
-            ),
-            Text(
-              RuFmt.date(member.requestedAt),
-              style: Fonts.sansStyle(size: 11, color: Palette.muted),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'просит доступ к организации',
-          style: Fonts.sansStyle(size: 11.5, color: Palette.muted),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: GhostButton.pair(
-            GhostButton(
-              label: 'Одобрить',
-              onPressed: () => _resolve(context, ref, true),
-            ),
-            GhostButton(
-              label: 'Отклонить',
-              onPressed: () => _resolve(context, ref, false),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => GlassCard(
+    child: InkWell(
+      onTap: () => _openCard(context, ref),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.person_search_rounded,
+                size: 16,
+                color: Palette.muted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  member.name?.isNotEmpty == true ? member.name! : member.userId,
+                  style: Fonts.sansStyle(
+                    size: 13.5,
+                    weight: 600,
+                    color: Palette.ink,
+                  ),
+                ),
+              ),
+              Text(
+                RuFmt.date(member.requestedAt),
+                style: Fonts.sansStyle(size: 11, color: Palette.muted),
+              ),
+            ],
+          ),
+          if (member.note.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              member.note,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Fonts.sansStyle(size: 12, color: Palette.ink2),
+            ),
+          ],
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                'Нажми, чтобы открыть полную визитку',
+                style: Fonts.sansStyle(size: 11.5, color: Palette.accent),
+              ),
+              const Spacer(),
+              GhostButton(
+                label: 'Визитка',
+                icon: Icons.badge_outlined,
+                onPressed: () => _openCard(context, ref),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: GhostButton.pair(
+              GhostButton(
+                label: 'Одобрить',
+                onPressed: () => _resolve(context, ref, true),
+              ),
+              GhostButton(
+                label: 'Отклонить',
+                onPressed: () => _resolve(context, ref, false),
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 
@@ -659,4 +837,24 @@ class _MemberCard extends ConsumerWidget {
       }
     }
   }
+}
+
+class _DetailField extends StatelessWidget {
+  const _DetailField({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Fonts.monoStyle(size: 10, color: Palette.muted)),
+        const SizedBox(height: 2),
+        Text(value, style: Fonts.sansStyle(size: 13.5, color: Palette.ink)),
+      ],
+    ),
+  );
 }

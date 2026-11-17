@@ -5,6 +5,7 @@ import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../feed/media_pool.dart';
+import '../shared/event_preview_screen.dart';
 import '../shared/kit.dart';
 import 'admin_common.dart';
 
@@ -161,6 +162,12 @@ class _QueueCard extends StatelessWidget {
                 style: Fonts.monoStyle(size: 9, color: Palette.placeholder),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          GhostButton(
+            label: 'Просмотреть как участник',
+            icon: Icons.visibility_outlined,
+            onPressed: () => EventPreviewScreen.show(context, event),
           ),
           const SizedBox(height: 10),
           _ParticipantPreview(event: event),

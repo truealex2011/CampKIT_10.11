@@ -185,7 +185,7 @@ class LocalRepository implements CampusLifeRepository {
   }
 
   @override
-  Future<void> requestMembership(String orgId, String userId) async {
+  Future<void> requestMembership(String orgId, String userId, {String note = ''}) async {
     final org = await organizationById(orgId);
     if (org == null) {
       throw const AppException('org', 'Организация с таким id не найдена');
@@ -529,8 +529,14 @@ class LocalRepository implements CampusLifeRepository {
   }
 
   @override
-  Future<String> shareUrl(String eventId) async =>
-      'https://campus.life/e/$eventId';
+  Future<String> shareUrl(String eventId) async {
+    final base = Uri.base;
+    if (base.host.isNotEmpty) {
+      final portPart = base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
+      return '${base.scheme}://${base.host}$portPart/#/events/$eventId';
+    }
+    return 'http://127.0.0.1:8731/#/events/$eventId';
+  }
 
   @override
   Future<List<CampusEvent>> search({
@@ -691,6 +697,25 @@ class LocalRepository implements CampusLifeRepository {
         ),
       ),
     );
+  }
+
+  @override
+  Future<EventMedia> uploadMedia(
+    String eventId,
+    List<int> bytes, {
+    required String name,
+    required MediaKind kind,
+  }) async {
+    final media = EventMedia(
+      id: newId('md'),
+      eventId: eventId,
+      kind: kind,
+      path: name,
+      bytes: bytes.length,
+      position: 0,
+    );
+    await attachMedia(media);
+    return media;
   }
 
   @override

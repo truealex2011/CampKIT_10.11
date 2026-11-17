@@ -451,63 +451,66 @@ class _RightRail extends StatelessWidget {
   final VoidCallback onReport;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 74,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _RailButton(
-          iconPath: AppIcons.reminderLight,
-          label: 'Напомнить',
-          active: hasReminder,
-          onTap: onReminder,
-        ),
-        const SizedBox(height: _railGap),
-        _DragLikeButton(
-          railWidth: 74,
-          isFavorite: isFavorite,
-          registered: registered,
-          likeCount: likeCount,
-          armed: armed,
-          onLike: onLike,
-          onRegister: onRegister,
-          onEnterMode: onEnterMode,
-          onExitMode: onExitMode,
-        ),
-        const SizedBox(height: _railGap),
-        IgnorePointer(
-          ignoring: armed,
-          child: Opacity(
-            opacity: armed ? 0.35 : 1,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _RailButton(
-                  iconPath: AppIcons.descriptionLight,
-                  label: 'Описание',
-                  onTap: onDescription,
-                ),
-                const SizedBox(height: _railGap),
-                _RailButton(
-                  iconPath: AppIcons.shareLight,
-                  label: 'Поделиться',
-                  onTap: onShare,
-                ),
-                const SizedBox(height: _railGap),
-                _RailButton(
-                  iconPath: AppIcons.reportLight,
-                  label: 'Жалоба',
-                  onTap: onReport,
-                ),
-              ],
+  Widget build(BuildContext context) {
+    final b = Theme.of(context).brightness;
+    return SizedBox(
+      width: 74,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _RailButton(
+            iconPath: AppIcons.reminderFor(b),
+            label: 'Напомнить',
+            active: hasReminder,
+            onTap: onReminder,
+          ),
+          const SizedBox(height: _railGap),
+          _DragLikeButton(
+            railWidth: 74,
+            isFavorite: isFavorite,
+            registered: registered,
+            likeCount: likeCount,
+            armed: armed,
+            onLike: onLike,
+            onRegister: onRegister,
+            onEnterMode: onEnterMode,
+            onExitMode: onExitMode,
+          ),
+          const SizedBox(height: _railGap),
+          IgnorePointer(
+            ignoring: armed,
+            child: Opacity(
+              opacity: armed ? 0.35 : 1,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _RailButton(
+                    iconPath: AppIcons.descriptionFor(b),
+                    label: 'Описание',
+                    onTap: onDescription,
+                  ),
+                  const SizedBox(height: _railGap),
+                  _RailButton(
+                    iconPath: AppIcons.shareFor(b),
+                    label: 'Поделиться',
+                    onTap: onShare,
+                  ),
+                  const SizedBox(height: _railGap),
+                  _RailButton(
+                    iconPath: AppIcons.reportFor(b),
+                    label: 'Жалоба',
+                    onTap: onReport,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 const double _railGap = Scale.railGap;
@@ -574,46 +577,55 @@ class _RoundIconButton extends StatelessWidget {
   final bool active;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    child: SizedBox(
-      width: size,
-      height: size,
-      child: Material(
-        shape: CircleBorder(
-          side: BorderSide(
-            color: iconPath != null
-                ? (active ? Palette.accent : Colors.transparent)
-                : active
-                    ? Palette.accent
-                    : Colors.white.withValues(alpha: 0.24),
-            width: iconPath != null && active ? 2 : 1,
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Semantics(
+      button: true,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Material(
+          shape: CircleBorder(
+            side: BorderSide(
+              color: iconPath != null
+                  ? (active ? Palette.accent : Colors.transparent)
+                  : active
+                      ? Palette.accent
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.24)
+                          : Palette.accent.withValues(alpha: 0.24)),
+              width: iconPath != null && active ? 2 : 1,
+            ),
           ),
-        ),
-        color: iconPath != null
-            ? Colors.transparent
-            : active
-                ? Palette.accent.withValues(alpha: 0.92)
-                : Colors.white.withValues(alpha: 0.12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Center(
-            child: glyph ??
-                (iconPath != null
-                    ? ActionIcon(path: iconPath!, size: size)
-                    : Icon(
-                        icon,
-                        size: size * 0.46,
-                        color: active
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.92),
-                      )),
+          color: iconPath != null
+              ? Colors.transparent
+              : active
+                  ? Palette.accent.withValues(alpha: 0.92)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : context.colors.paper.withValues(alpha: 0.9)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Center(
+              child: glyph ??
+                  (iconPath != null
+                      ? ActionIcon(path: iconPath!, size: size)
+                      : Icon(
+                          icon,
+                          size: size * 0.46,
+                          color: active
+                              ? (isDark ? Colors.white : Palette.darkAccent)
+                              : (isDark
+                                  ? Colors.white.withValues(alpha: 0.92)
+                                  : Palette.darkAccent.withValues(alpha: 0.92)),
+                        )),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _DragLikeButton extends StatefulWidget {
@@ -825,6 +837,8 @@ class _DragLikeButtonState extends State<_DragLikeButton>
   );
 
   Widget _buildAnimated(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final b = Theme.of(context).brightness;
     final value = _drag.value;
     final reached = value >= _threshold;
     final fill = (value / _trackLength).clamp(0.0, 1.0);
@@ -850,14 +864,27 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: reached
-                          ? Palette.mint
-                          : Colors.white.withValues(alpha: 0.28),
+                          ? (isDark ? Palette.mint : Palette.accent)
+                          : (isDark
+                              ? Colors.white.withValues(alpha: 0.28)
+                              : Palette.accent.withValues(alpha: 0.35)),
                     ),
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : context.colors.paper.withValues(alpha: 0.95),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(
                     children: [
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: isDark ? 0.35 : 0.22,
+                          child: Image.asset(
+                            AppIcons.swipeLeftFor(b),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
                       Positioned.fill(
                         child: Align(
                           alignment: Alignment.centerRight,
@@ -866,10 +893,15 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [
-                                    Palette.accent.withValues(alpha: 0.1),
-                                    Palette.accent.withValues(alpha: 0.85),
-                                  ],
+                                  colors: isDark
+                                      ? [
+                                          Palette.accent.withValues(alpha: 0.1),
+                                          Palette.accent.withValues(alpha: 0.85),
+                                        ]
+                                      : [
+                                          Palette.mint.withValues(alpha: 0.2),
+                                          Palette.accent.withValues(alpha: 0.85),
+                                        ],
                                 ),
                               ),
                             ),
@@ -880,7 +912,7 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                         child: CustomPaint(
                           painter: _LanePainter(
                             swim: _swim.value,
-                            color: Palette.darkAccent,
+                            color: isDark ? Palette.darkAccent : Palette.accent,
                           ),
                         ),
                       ),
@@ -897,7 +929,9 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                               size: 9,
                               weight: 600,
                               letterSpacing: 0.08 * 9,
-                              color: Colors.white.withValues(alpha: 0.92),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.92)
+                                  : Palette.ink,
                             ),
                           ),
                         ),
@@ -918,7 +952,9 @@ class _DragLikeButtonState extends State<_DragLikeButton>
               child: Icon(
                 reached ? Icons.check_rounded : Icons.swipe_left_alt_rounded,
                 size: 18,
-                color: Colors.white.withValues(alpha: reached ? 1 : 0.75),
+                color: isDark
+                    ? Colors.white.withValues(alpha: reached ? 1 : 0.75)
+                    : Palette.accent.withValues(alpha: reached ? 1 : 0.85),
               ),
             ),
           ),
@@ -967,7 +1003,9 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                           Positioned.fill(
                             child: PixelBurst(
                               animation: _fly,
-                              color: AppColors.dark.accent,
+                              color: isDark
+                                  ? AppColors.dark.accent
+                                  : Palette.accent,
                             ),
                           ),
                           Transform.rotate(
@@ -1016,17 +1054,19 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                                       value: widget.armed ? 1 : _hold.value,
                                       strokeWidth: 2,
                                       strokeCap: StrokeCap.round,
-                                      color: Colors.white,
-                                      backgroundColor: Colors.white.withValues(
-                                        alpha: 0.18,
-                                      ),
+                                      color: isDark ? Colors.white : Palette.accent,
+                                      backgroundColor: isDark
+                                          ? Colors.white.withValues(alpha: 0.18)
+                                          : Palette.accent.withValues(
+                                              alpha: 0.18,
+                                            ),
                                     ),
                                   ),
                                 ),
                                 _RoundIconButton(
-                                  glyph: FishHeartIcon(
-                                    size: 50,
-                                    filled: widget.isFavorite,
+                                  iconPath: AppIcons.likeFor(
+                                    b,
+                                    active: widget.isFavorite,
                                   ),
                                   size: 50,
                                   active: widget.isFavorite,
@@ -1039,7 +1079,10 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                                       child: Transform.translate(
                                         offset: Offset(0, -90 * _fly.value),
                                         child: ActionIcon(
-                                          path: AppIcons.likeActiveLight,
+                                          path: AppIcons.likeFor(
+                                            b,
+                                            active: true,
+                                          ),
                                           size: 46,
                                         ),
                                       ),
@@ -1057,7 +1100,9 @@ class _DragLikeButtonState extends State<_DragLikeButton>
                       style: Fonts.monoStyle(
                         size: 10,
                         letterSpacing: 0,
-                        color: Colors.white.withValues(alpha: 0.86),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.86)
+                            : Palette.ink.withValues(alpha: 0.86),
                       ),
                     ),
                   ],

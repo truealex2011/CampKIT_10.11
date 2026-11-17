@@ -71,12 +71,32 @@ class _Harness {
   }
 
   Future<void> tapBottomAction() async {
-    await tester.tap(find.byType(GestureDetector).last);
+    await tester.tap(find.text('Далее').last);
+    await settle();
+  }
+
+  Future<void> tapNext() async {
+    await tester.tap(find.text('Далее').last);
+    await settle();
+  }
+
+  Finder get fishGlyph => find.ancestor(
+    of: find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName.contains('like'),
+    ),
+    matching: find.byType(GestureDetector),
+  );
+
+  Future<void> tapFish() async {
+    await tester.tap(fishGlyph.first);
     await settle();
   }
 
   Future<void> holdFish({double dx = -140}) async {
-    final Offset center = tester.getCenter(find.byType(GestureDetector).last);
+    final Offset center = tester.getCenter(fishGlyph.first);
     final TestGesture gesture = await tester.startGesture(center);
     await tester.pump(const Duration(milliseconds: 1200));
     await gesture.moveBy(Offset(dx, 0));
@@ -110,7 +130,7 @@ void main() {
     await h.start();
     await h.swipeFeed();
     await h.swipeMedia();
-    expect(find.text('Готово. Смахни вниз'), findsWidgets);
+    expect(find.textContaining('Задание выполнено'), findsWidgets);
   });
 
   testWidgets('короткий тап по рыбке не записывает на событие', (WidgetTester tester) async {
@@ -119,11 +139,9 @@ void main() {
     await h.start();
     await h.swipeFeed();
     await h.swipeMedia();
-    await h.swipeDown();
-    await h.tapBottomAction();
-    await h.swipeDown();
-    await h.tapBottomAction();
-    expect(find.text('Готово. Смахни вниз'), findsNothing);
+    await h.tapNext();
+    await h.tapFish();
+    expect(find.text('Удерживай кнопку и веди влево — так ты записываешься'), findsNothing);
   });
 
   testWidgets('удержание и движение выполняют запись', (WidgetTester tester) async {
@@ -132,11 +150,11 @@ void main() {
     await h.start();
     await h.swipeFeed();
     await h.swipeMedia();
-    await h.swipeDown();
-    await h.tapBottomAction();
-    await h.swipeDown();
+    await h.tapNext();
+    await h.tapFish();
+    await h.tapNext();
     await h.holdFish();
-    expect(find.text('Готово. Смахни вниз'), findsWidgets);
+    expect(find.textContaining('Задание выполнено'), findsWidgets);
   });
 
   testWidgets('отпускание до порога отменяет запись', (WidgetTester tester) async {
@@ -145,11 +163,11 @@ void main() {
     await h.start();
     await h.swipeFeed();
     await h.swipeMedia();
-    await h.swipeDown();
-    await h.tapBottomAction();
-    await h.swipeDown();
+    await h.tapNext();
+    await h.tapFish();
+    await h.tapNext();
     await h.holdFish(dx: -14);
-    expect(find.text('Готово. Смахни вниз'), findsNothing);
+    expect(find.textContaining('Задание выполнено'), findsNothing);
   });
 
   testWidgets('пропуск даёт skipped ровно один раз', (WidgetTester tester) async {

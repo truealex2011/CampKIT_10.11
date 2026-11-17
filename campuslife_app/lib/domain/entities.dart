@@ -178,6 +178,10 @@ class OrgMember {
     required this.role,
     required this.status,
     required this.requestedAt,
+    this.name,
+    this.email,
+    this.phone,
+    this.note = '',
   });
 
   final String orgId;
@@ -185,6 +189,10 @@ class OrgMember {
   final MemberRole role;
   final MemberStatus status;
   final DateTime requestedAt;
+  final String? name;
+  final String? email;
+  final String? phone;
+  final String note;
 }
 
 class EventMedia {
@@ -253,6 +261,7 @@ class CampusEvent {
     required this.status,
     this.description = '',
     this.capacity = -1,
+    this.autoApprove = false,
     this.moderationNote = '',
     this.media = const [],
     this.fields = const [],
@@ -268,6 +277,7 @@ class CampusEvent {
   final EventStatus status;
   final String description;
   final int capacity;
+  final bool autoApprove;
   final String moderationNote;
   final List<EventMedia> media;
   final List<CustomField> fields;
@@ -290,6 +300,7 @@ class CampusEvent {
     DateTime? startAt,
     String? place,
     int? capacity,
+    bool? autoApprove,
     EventStatus? status,
     String? moderationNote,
     List<EventMedia>? media,
@@ -304,6 +315,7 @@ class CampusEvent {
     startAt: startAt ?? this.startAt,
     place: place ?? this.place,
     capacity: capacity ?? this.capacity,
+    autoApprove: autoApprove ?? this.autoApprove,
     status: status ?? this.status,
     moderationNote: moderationNote ?? this.moderationNote,
     media: media ?? this.media,
@@ -319,6 +331,7 @@ class EventApplication {
     required this.userId,
     required this.applicantName,
     required this.applicantEmail,
+    this.applicantPhone = '',
     required this.answers,
     required this.status,
     required this.createdAt,
@@ -329,6 +342,7 @@ class EventApplication {
   final String userId;
   final String applicantName;
   final String applicantEmail;
+  final String applicantPhone;
   final Map<String, String> answers;
   final String status;
   final DateTime createdAt;

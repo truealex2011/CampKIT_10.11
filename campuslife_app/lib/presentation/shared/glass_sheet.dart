@@ -17,6 +17,10 @@ class GlassSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark
+        ? Color.alphaBlend(colors.glass, Palette.darkPaper)
+        : Color.alphaBlend(colors.glass, Palette.paper);
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(AppRadius.sheet),
@@ -25,7 +29,7 @@ class GlassSheet extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.glass,
+            color: sheetBg,
             border: Border(
               top: BorderSide(color: colors.lineStrong),
               left: BorderSide(color: colors.line),

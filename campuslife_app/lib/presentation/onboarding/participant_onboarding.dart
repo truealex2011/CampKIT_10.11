@@ -4,6 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../shared/app_icons.dart';
 
 enum ParticipantOnboardingResult { completed, skipped }
 
@@ -138,7 +141,7 @@ enum _SceneKind { court, lab, waves, video }
 
 enum _ProfileTab { tickets, favorites, settings }
 
-enum _ReminderChoice { hour, day }
+enum _ReminderChoice { hour, day, custom }
 
 enum _ReportReason { wrongInfo, inappropriate, other }
 
@@ -483,7 +486,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
 
   _DemoKind _demoKindFor(_Phase phase) {
     return switch (phase) {
-      _Phase.swipeFeed => _DemoKind.none,
+      _Phase.swipeFeed => _DemoKind.swipeUp,
       _Phase.media => _DemoKind.swipeLeft,
       _Phase.favorite => _DemoKind.tapFish,
       _Phase.register => _DemoKind.holdDrag,
@@ -942,6 +945,22 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
                 focusLabel: index == _feedIndex ? _focusLabel() : '',
                 tooShort: _tooShort && index == _feedIndex,
                 phase: _phase,
+                onReminderTap: () => _openSheet(_SheetKind.reminder),
+                onLikeTap: _onFishTap,
+                onLongPressDown: _onLongPressDown,
+                onLongPressStart: _onLongPressStart,
+                onLongPressMove: _onLongPressMove,
+                onLongPressEnd: _onLongPressEnd,
+                onLongPressCancel: _onLongPressCancel,
+                onDescriptionTap: () => _openSheet(_SheetKind.description),
+                onShareTap: () => _openSheet(_SheetKind.share),
+                onReportTap: () => _openSheet(_SheetKind.report),
+                hasReminder: _reminded,
+                isFavorite: _favorite,
+                isRegistered: _registered,
+                isDescriptionRead: _descriptionRead,
+                isShared: _shared,
+                isReported: _reported,
               );
             },
           ),
@@ -966,17 +985,7 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
               ),
             ),
           ),
-        if (done && _phase != _Phase.settings)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onVerticalDragEnd: (DragEndDetails details) {
-                final double velocity = details.primaryVelocity ?? 0;
-                if (velocity > 160) _advance();
-              },
-              child: const SizedBox.expand(),
-            ),
-          ),
+
         if (_phase == _Phase.swipeFeed && !done)
           Positioned(
             left: 0,
@@ -1421,11 +1430,29 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
     );
   }
 
-  void _selectReminder(_ReminderChoice choice) {
+  Future<void> _selectReminder(_ReminderChoice choice) async {
     if (_reminded) return;
+    if (choice == _ReminderChoice.custom) {
+      final now = DateTime.now();
+      final pickedDate = await showDatePicker(
+        context: context,
+        initialDate: now.add(const Duration(days: 1)),
+        firstDate: now,
+        lastDate: now.add(const Duration(days: 365)),
+        helpText: 'Выберите дату напоминания',
+      );
+      if (pickedDate == null || !mounted) return;
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: const TimeOfDay(hour: 12, minute: 0),
+        helpText: 'Выберите время напоминания',
+      );
+      if (pickedTime == null || !mounted) return;
+    }
+    if (!mounted) return;
     setState(() => _reminder = choice);
     _complete(_Phase.reminder);
-    _closeSheet();
+    await _closeSheet();
   }
 
   void _confirmDescription() {
@@ -1435,6 +1462,8 @@ class _SessionState extends State<_Session> with TickerProviderStateMixin {
 
   void _copyDemoLink() {
     if (_shared) return;
+    final realUrl = Uri.base.toString().split('#').first + '#/events/ev_1';
+    unawaited(Clipboard.setData(ClipboardData(text: realUrl)));
     _complete(_Phase.share);
   }
 
@@ -1467,6 +1496,22 @@ class _FeedSlide extends StatelessWidget {
     required this.focusLabel,
     required this.tooShort,
     required this.phase,
+    this.onReminderTap,
+    this.onLikeTap,
+    this.onLongPressDown,
+    this.onLongPressStart,
+    this.onLongPressMove,
+    this.onLongPressEnd,
+    this.onLongPressCancel,
+    this.onDescriptionTap,
+    this.onShareTap,
+    this.onReportTap,
+    this.isFavorite = false,
+    this.isRegistered = false,
+    this.hasReminder = false,
+    this.isDescriptionRead = false,
+    this.isShared = false,
+    this.isReported = false,
   });
 
   final _EventSpec event;
@@ -1484,6 +1529,22 @@ class _FeedSlide extends StatelessWidget {
   final String focusLabel;
   final bool tooShort;
   final _Phase phase;
+  final VoidCallback? onReminderTap;
+  final VoidCallback? onLikeTap;
+  final GestureLongPressDownCallback? onLongPressDown;
+  final GestureLongPressStartCallback? onLongPressStart;
+  final GestureLongPressMoveUpdateCallback? onLongPressMove;
+  final GestureLongPressEndCallback? onLongPressEnd;
+  final GestureLongPressCancelCallback? onLongPressCancel;
+  final VoidCallback? onDescriptionTap;
+  final VoidCallback? onShareTap;
+  final VoidCallback? onReportTap;
+  final bool isFavorite;
+  final bool isRegistered;
+  final bool hasReminder;
+  final bool isDescriptionRead;
+  final bool isShared;
+  final bool isReported;
 
   @override
   Widget build(BuildContext context) {
@@ -1558,17 +1619,46 @@ class _FeedSlide extends StatelessWidget {
           child: _SkeletonText(reveal: reveal, event: event),
         ),
         Positioned(
-          right: 16,
-          top: math.max(12, geo.mediaHeight - 132),
-          child: _ActionGlyph(
-            action: _actionFor(phase),
-            focused: active,
-            accent: phase == _Phase.reminder ||
-                phase == _Phase.favorite ||
-                phase == _Phase.register ||
-                phase == _Phase.description ||
-                phase == _Phase.share ||
-                phase == _Phase.report,
+          right: 14,
+          top: math.max(12, geo.mediaHeight - 160),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final item in _RailAction.values) ...[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: switch (item) {
+                    _RailAction.bell => onReminderTap,
+                    _RailAction.fish => onLikeTap,
+                    _RailAction.info => onDescriptionTap,
+                    _RailAction.share => onShareTap,
+                    _RailAction.flag => onReportTap,
+                  },
+                  onLongPressDown:
+                      item == _RailAction.fish ? onLongPressDown : null,
+                  onLongPressStart:
+                      item == _RailAction.fish ? onLongPressStart : null,
+                  onLongPressMoveUpdate:
+                      item == _RailAction.fish ? onLongPressMove : null,
+                  onLongPressEnd:
+                      item == _RailAction.fish ? onLongPressEnd : null,
+                  onLongPressCancel:
+                      item == _RailAction.fish ? onLongPressCancel : null,
+                  child: _ActionGlyph(
+                    action: item,
+                    focused: active && _actionFor(phase) == item,
+                    accent: switch (item) {
+                      _RailAction.bell => hasReminder,
+                      _RailAction.fish => isFavorite || isRegistered,
+                      _RailAction.info => isDescriptionRead,
+                      _RailAction.share => isShared,
+                      _RailAction.flag => isReported,
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ],
           ),
         ),
         Positioned(
@@ -2026,193 +2116,99 @@ class _FocusedAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isHold = phase == _Phase.register && !done;
-    final bool isFish = (phase == _Phase.favorite || isHold) && !done;
-    if (done && phase != _Phase.settings) {
-      return Semantics(
-        label: 'Готово. Смахни вниз, чтобы продолжить',
-        excludeSemantics: true,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.all(Radius.circular(_R.pill)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text(
-                'Готово. Смахни вниз',
-                style: _T.sans(
-                  14,
-                  weight: FontWeight.w800,
-                  color: _C.accent,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(width: 8),
-              CustomPaint(
-                size: const Size(12, 12),
-                painter: _ArrowDownPainter(color: _C.accent),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final bool canProceed = done || phase == _Phase.intro;
+    final String buttonLabel = phase == _Phase.intro
+        ? 'Начать обучение'
+        : (phase == _Phase.settings || phase == _Phase.finale
+            ? 'Завершить обучение'
+            : 'Далее');
+
     return Semantics(
       button: true,
-      label: _semanticLabel,
-      excludeSemantics: true,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: isHold
-            ? (PointerDownEvent e) {
-                onLongPressDown?.call(
-                  LongPressDownDetails(
-                    globalPosition: e.position,
-                    localPosition: e.localPosition,
-                    kind: e.kind,
+      label: buttonLabel,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: canProceed
+                  ? _C.surface
+                  : _C.surface.withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  canProceed
+                      ? Icons.check_circle_rounded
+                      : Icons.info_outline_rounded,
+                  size: 18,
+                  color: canProceed ? _C.accent : _C.muted,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    canProceed
+                        ? 'Задание выполнено! Нажми «$buttonLabel»'
+                        : hint,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _T.sans(
+                      12,
+                      weight: canProceed ? FontWeight.w700 : FontWeight.w600,
+                      color: canProceed ? _C.accent : _C.ink2,
+                      height: 1.25,
+                    ),
                   ),
-                );
-              }
-            : null,
-        onPointerMove: isHold
-            ? (PointerMoveEvent e) {
-                onLongPressMove?.call(
-                  LongPressMoveUpdateDetails(
-                    globalPosition: e.position,
-                    localPosition: e.localPosition,
-                  ),
-                );
-              }
-            : null,
-        onPointerUp: isHold
-            ? (PointerUpEvent e) {
-                onLongPressEnd?.call(
-                  LongPressEndDetails(
-                    globalPosition: e.position,
-                    localPosition: e.localPosition,
-                  ),
-                );
-              }
-            : null,
-        onPointerCancel: isHold ? (_) => onLongPressCancel?.call() : null,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: done ? onNext : onTap,
-          onLongPressDown: isHold ? onLongPressDown : null,
-          onLongPressStart: isHold ? onLongPressStart : null,
-          onLongPressMoveUpdate: isHold ? onLongPressMove : null,
-          onLongPressEnd: isHold ? onLongPressEnd : null,
-          onLongPressCancel: isHold ? onLongPressCancel : null,
-          child: AnimatedBuilder(
-          animation: Listenable.merge(<Listenable>[hold, dragX]),
-          builder: (BuildContext context, Widget? child) {
-            final double drag = _saturate(-dragX.value / math.max(1, travel));
-            final double holdValue = _saturate(hold.value);
-            return Container(
-              constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: canProceed ? onNext : null,
+            child: AnimatedContainer(
+              duration: _D.base,
+              height: 50,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _C.accent,
+                color: canProceed ? _C.accent : _C.bone,
                 borderRadius: const BorderRadius.all(Radius.circular(_R.pill)),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: _C.accent.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                boxShadow: canProceed
+                    ? <BoxShadow>[
+                        BoxShadow(
+                          color: _C.accent.withValues(alpha: 0.28),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
               ),
-              child: Row(
-                children: <Widget>[
-                  if (isFish)
-                    SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: <Widget>[
-                          CustomPaint(
-                            size: const Size(24, 20),
-                            painter: _FishGlyphPainter(
-                              color: _C.surface,
-                              wave: reduceMotion
-                                  ? 0
-                                  : math.sin(holdValue * math.pi * 2) * 0.2,
-                            ),
-                          ),
-                          if (holdValue > 0 && holdValue < 1)
-                            CustomPaint(
-                              size: const Size(28, 28),
-                              painter: _RingPainter(progress: holdValue),
-                            ),
-                        ],
-                      ),
-                    ),
-                  if (isFish) const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          isHold && past ? 'Отпусти' : hint,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: _T.sans(
-                            13,
-                            weight: FontWeight.w700,
-                            color: _C.surface,
-                            height: 1.24,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _label.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _T.mono(
-                            9,
-                            color: _C.surface.withValues(alpha: 0.82),
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: <Widget>[
-                        CustomPaint(
-                          size: const Size(30, 30),
-                          painter: _KnobPainter(progress: drag, past: past),
-                        ),
-                        if (holdReady || drag > 0)
-                          CustomPaint(
-                            size: const Size(22, 22),
-                            painter: _ArrowLeftPainter(
-                              color: _C.accent,
-                              opacity: 0.5 + drag * 0.5,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+              child: Text(
+                buttonLabel,
+                style: _T.sans(
+                  15,
+                  weight: FontWeight.w700,
+                  color: canProceed ? _C.surface : _C.muted,
+                ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _RingPainter extends CustomPainter {
@@ -2560,6 +2556,14 @@ class _ActionGlyph extends StatelessWidget {
   final bool focused;
   final bool accent;
 
+  String _iconPath(_RailAction item) => switch (item) {
+    _RailAction.bell => AppIcons.reminderDark,
+    _RailAction.fish => accent ? AppIcons.likeActiveDark : AppIcons.likeDark,
+    _RailAction.info => AppIcons.descriptionDark,
+    _RailAction.share => AppIcons.shareDark,
+    _RailAction.flag => AppIcons.reportDark,
+  };
+
   @override
   Widget build(BuildContext context) {
     final _RailAction? item = action;
@@ -2576,21 +2580,31 @@ class _ActionGlyph extends StatelessWidget {
       child: AnimatedContainer(
         duration: _D.base,
         curve: _E.main,
-        width: 34,
-        height: 34,
+        width: 36,
+        height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: accent ? _C.accent : _C.surface.withValues(alpha: 0.9),
+          color: accent
+              ? _C.accent.withValues(alpha: 0.15)
+              : (focused ? _C.accentSoft : _C.surface.withValues(alpha: 0.95)),
           shape: BoxShape.circle,
-        ),
-        child: CustomPaint(
-          size: const Size(16, 16),
-          painter: _RailGlyphPainter(
-            action: item,
-            color: accent
-                ? _C.surface
-                : _C.muted.withValues(alpha: focused ? 0.9 : 0.5),
+          border: Border.all(
+            color: focused ? _C.accent : (accent ? _C.accent : _C.hairline),
+            width: focused ? 2 : 1,
           ),
+          boxShadow: focused
+              ? [
+                  BoxShadow(
+                    color: _C.accent.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: ActionIcon(
+          path: _iconPath(item),
+          size: 26,
         ),
       ),
     );
@@ -3271,6 +3285,13 @@ class _ReminderSheet extends StatelessWidget {
             selected: selected == _ReminderChoice.day,
             onTap: () => onSelect(_ReminderChoice.day),
           ),
+          const SizedBox(height: 8),
+          _SheetOption(
+            label: 'Своё время',
+            meta: 'Выбрать точные дату и время',
+            selected: selected == _ReminderChoice.custom,
+            onTap: () => onSelect(_ReminderChoice.custom),
+          ),
           const SizedBox(height: 14),
           const _DemoNotice(text: 'Учебный режим: уведомление не создаётся.'),
         ],
@@ -3360,6 +3381,7 @@ class _ShareSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final realUrl = Uri.base.toString().split('#').first + '#/events/ev_1';
     return _SheetShell(
       eyebrow: 'ПОДЕЛИТЬСЯ',
       title: 'Пригласи друзей',
@@ -3378,7 +3400,7 @@ class _ShareSheet extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'campuslife.demo/event/1',
+                    realUrl,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: _T.mono(11.5, color: _C.ink2, letterSpacing: 0.2),
@@ -3398,13 +3420,9 @@ class _ShareSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _PrimaryButton(
-            label: copied ? 'Готово' : 'Скопировать учебную ссылку',
+            label: copied ? 'Ссылка скопирована' : 'Скопировать ссылку',
             onTap: onCopy,
             enabled: !copied,
-          ),
-          const SizedBox(height: 12),
-          const _DemoNotice(
-            text: 'Это демонстрация: настоящая ссылка не копируется.',
           ),
         ],
       ),
@@ -3543,7 +3561,7 @@ class _ProfileOverlay extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    'УЧЕБНЫЙ ПРОФИЛЬ',
+                    'ПРОФИЛЬ',
                     style: _T.mono(9.5, letterSpacing: 1.3),
                   ),
                   const Spacer(),
@@ -3877,7 +3895,7 @@ class _ProfileFavorites extends StatelessWidget {
   }
 }
 
-class _ProfileSettings extends StatelessWidget {
+class _ProfileSettings extends StatefulWidget {
   const _ProfileSettings({
     required this.canRetry,
     required this.visited,
@@ -3889,26 +3907,67 @@ class _ProfileSettings extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
+  State<_ProfileSettings> createState() => _ProfileSettingsState();
+}
+
+class _ProfileSettingsState extends State<_ProfileSettings> {
+  bool _fish = true;
+
+  @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       children: <Widget>[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _C.surface,
+            borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
+            border: Border.all(color: _C.hairline),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Плавучие рыбы на фоне',
+                      style: _T.sans(13.5, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Анимированные рыбы на подложке экранов',
+                      style: _T.sans(11.5, color: _C.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _fish,
+                onChanged: (v) => setState(() => _fish = v),
+                activeThumbColor: _C.accent,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         Semantics(
           button: true,
           label: 'Пройти обучение заново',
           excludeSemantics: true,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: canRetry ? onRetry : null,
+            onTap: widget.canRetry ? widget.onRetry : null,
             child: Container(
               constraints: const BoxConstraints(minHeight: 58),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: canRetry ? _C.accentSoft : _C.surface,
+                color: widget.canRetry ? _C.accentSoft : _C.surface,
                 borderRadius: const BorderRadius.all(Radius.circular(_R.control)),
                 border: Border.all(
-                  color: canRetry ? _C.accent : _C.hairline,
-                  width: canRetry ? 1.4 : 1,
+                  color: widget.canRetry ? _C.accent : _C.hairline,
+                  width: widget.canRetry ? 1.4 : 1,
                 ),
               ),
               child: Row(
@@ -3919,9 +3978,9 @@ class _ProfileSettings extends StatelessWidget {
                       style: _T.sans(13.5, weight: FontWeight.w700),
                     ),
                   ),
-                  if (canRetry)
+                  if (widget.canRetry)
                     Text(
-                      visited ? 'НАЙДЕНО' : 'НАЖАТЬ',
+                      widget.visited ? 'НАЙДЕНО' : 'НАЖАТЬ',
                       style: _T.mono(8.5, color: _C.accent, letterSpacing: 0.8),
                     ),
                 ],
@@ -3931,12 +3990,12 @@ class _ProfileSettings extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          canRetry
+          widget.canRetry
               ? 'В настоящем профиле эта строка снова откроет обучение.'
               : 'Строка откроется на шаге настроек.',
           style: _T.sans(11.5, color: _C.muted, height: 1.35),
         ),
-        if (visited) ...<Widget>[
+        if (widget.visited) ...<Widget>[
           const SizedBox(height: 10),
           const _DemoNotice(
             text: 'Учебный режим: строка только отмечает, что ты нашёл нужный пункт.',

@@ -14,7 +14,7 @@ abstract interface class AuthRepository {
 
   Future<User> registerOrganizer(OrganizerSignup signup);
 
-  Future<void> requestMembership(String orgId, String userId);
+  Future<void> requestMembership(String orgId, String userId, {String note = ''});
 
   Future<User?> restoreSession();
 
@@ -116,6 +116,8 @@ abstract interface class OrganizerRepository {
   Future<void> resolveMembership(String orgId, String userId, bool approve);
 
   Future<void> attachMedia(EventMedia media);
+
+  Future<EventMedia> uploadMedia(String eventId, List<int> bytes, {required String name, required MediaKind kind});
 
   Future<void> removeMedia(String mediaId);
 

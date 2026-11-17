@@ -343,7 +343,12 @@ class FakeCampusLifeRepository implements CampusLifeRepository {
   }
 
   @override
-  Future<void> requestMembership(String orgId, String userId) async {
+  Future<void> requestMembership(
+    String orgId,
+    String userId, {
+    String note = '',
+  }) async {
+    final user = people.where((u) => u.id == userId).firstOrNull;
     members.add(
       OrgMember(
         orgId: orgId,
@@ -351,6 +356,10 @@ class FakeCampusLifeRepository implements CampusLifeRepository {
         role: MemberRole.member,
         status: MemberStatus.pending,
         requestedAt: DateTime.now(),
+        name: user?.name ?? 'Участник',
+        email: user?.email ?? '',
+        phone: user?.phone ?? '',
+        note: note,
       ),
     );
   }
@@ -641,6 +650,28 @@ class FakeCampusLifeRepository implements CampusLifeRepository {
         return;
       }
     }
+  }
+
+  @override
+  Future<EventMedia> uploadMedia(
+    String eventId,
+    List<int> bytes, {
+    required String name,
+    required MediaKind kind,
+  }) async {
+    final id = 'md_${DateTime.now().microsecondsSinceEpoch}';
+    final media = EventMedia(
+      id: id,
+      eventId: eventId,
+      kind: kind,
+      path: 'assets/media/$name',
+      bytes: bytes.length,
+    );
+    final eventIndex = events.indexWhere((e) => e.id == eventId);
+    if (eventIndex != -1) {
+      events[eventIndex].media.add(media);
+    }
+    return media;
   }
 
   @override

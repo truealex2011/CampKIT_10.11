@@ -55,7 +55,7 @@ class OceanBackdrop extends ConsumerWidget {
             if (fishEnabled)
               OceanView(scene: ref.watch(ambientOceanProvider))
             else
-              Container(color: Palette.ink),
+              Container(color: context.colors.paper),
             _Veil(paper: context.colors.paper, factor: veil),
           ],
         ),

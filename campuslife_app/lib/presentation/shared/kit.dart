@@ -128,6 +128,7 @@ class GlassField extends StatefulWidget {
     this.enabled = true,
     this.error,
     this.autofocus = false,
+    this.inputFormatters,
   });
 
   final String label;
@@ -147,6 +148,7 @@ class GlassField extends StatefulWidget {
 
   final String? error;
   final bool autofocus;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   State<GlassField> createState() => _GlassFieldState();
@@ -265,14 +267,15 @@ class _GlassFieldState extends State<GlassField> {
                     },
                     textCapitalization: widget.textCapitalization,
                     autofocus: widget.autofocus,
-                    inputFormatters: widget.uppercase
-                        ? [
-                            UpperCaseFormatter(),
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[A-Z0-9-]'),
-                            ),
-                          ]
-                        : null,
+                    inputFormatters: widget.inputFormatters ??
+                        (widget.uppercase
+                            ? [
+                                UpperCaseFormatter(),
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[A-Z0-9-]'),
+                                ),
+                              ]
+                            : null),
                     style: Fonts.sansStyle(size: 14),
                     cursorColor: context.colors.ink,
                     decoration: InputDecoration(
@@ -559,11 +562,13 @@ class GhostButton extends StatefulWidget {
     required this.label,
     this.onPressed,
     this.expand = false,
+    this.icon,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool expand;
+  final IconData? icon;
 
   static List<Widget> pair(Widget a, Widget b) => [
     Expanded(child: a),
@@ -604,14 +609,37 @@ class _GhostButtonState extends State<GhostButton> {
           onTap: widget.onPressed,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-            child: Text(
-              widget.label,
-              style: Fonts.sansStyle(
-                size: 13,
-                weight: 500,
-                color: context.colors.ink2,
-              ),
-            ),
+            child: widget.icon != null
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(widget.icon, size: 16, color: context.colors.ink2),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Fonts.sansStyle(
+                            size: 13,
+                            weight: 500,
+                            color: context.colors.ink2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Fonts.sansStyle(
+                      size: 13,
+                      weight: 500,
+                      color: context.colors.ink2,
+                    ),
+                  ),
           ),
         ),
       ),

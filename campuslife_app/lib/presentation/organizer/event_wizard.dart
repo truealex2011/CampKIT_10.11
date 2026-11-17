@@ -3,12 +3,14 @@ import 'dart:math';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/di.dart';
 import '../../app/theme.dart';
 import '../../domain/entities.dart';
 import '../entry/entry_widgets.dart';
+import '../shared/event_preview_screen.dart';
 import '../shared/fish.dart';
 import '../shared/kit.dart';
 import '../shared/pixel.dart';
@@ -47,6 +49,7 @@ class _EventWizardState extends ConsumerState<EventWizard> {
   EventCategory? _category;
   EventMedia? _video;
   EventStatus _status = EventStatus.draft;
+  bool _autoApprove = false;
   DateTime _startAt = DateTime.now().add(const Duration(days: 3));
   int _step = 0;
   bool _ready = false;
@@ -90,6 +93,7 @@ class _EventWizardState extends ConsumerState<EventWizard> {
     _category = event.category;
     _startAt = event.startAt;
     _status = event.status;
+    _autoApprove = event.autoApprove;
     _photos
       ..clear()
       ..addAll(event.photos);
@@ -125,6 +129,7 @@ class _EventWizardState extends ConsumerState<EventWizard> {
       place: _placeCtrl.text.trim(),
       capacity: _capacityValue,
       status: status,
+      autoApprove: _autoApprove,
       media: [for (var i = 0; i < media.length; i++) _at(media[i], i)],
       fields: [
         for (var i = 0; i < _fields.length; i++)
@@ -316,6 +321,7 @@ class _EventWizardState extends ConsumerState<EventWizard> {
         hint: 'пусто — без лимита',
         icon: Icons.local_see_rounded,
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         maxLength: 4,
         onChanged: (_) => setState(() {}),
       ),
@@ -324,6 +330,33 @@ class _EventWizardState extends ConsumerState<EventWizard> {
           'Запись закроется, когда свободных мест не останется.',
           style: Fonts.sansStyle(size: 11.5, color: Palette.muted),
         ),
+      const SizedBox(height: 12),
+      DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.colors.glassField,
+          borderRadius: BorderRadius.circular(Scale.fieldRadius),
+          border: Border.all(color: context.colors.line),
+        ),
+        child: SwitchListTile(
+          value: _autoApprove,
+          onChanged: (v) => setState(() => _autoApprove = v),
+          title: Text(
+            'Автоматическое подтверждение заявок',
+            style: Fonts.sansStyle(
+              size: 13.5,
+              weight: 600,
+              color: context.colors.ink,
+            ),
+          ),
+          subtitle: Text(
+            _autoApprove
+                ? 'Заявки участников одобряются автоматически'
+                : 'Организатор вручную одобряет/отклоняет заявки во вкладке «Анкеты»',
+            style: Fonts.sansStyle(size: 11.5, color: Palette.muted),
+          ),
+          activeThumbColor: Palette.accent,
+        ),
+      ),
       if (_startAt.isBefore(DateTime.now()))
         const Padding(
           padding: EdgeInsets.only(top: 8),
@@ -592,6 +625,13 @@ class _EventWizardState extends ConsumerState<EventWizard> {
   Widget _reviewStep() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      GhostButton(
+        label: 'Посмотреть как в ленте (полный экран)',
+        icon: Icons.visibility_outlined,
+        expand: true,
+        onPressed: () => EventPreviewScreen.show(context, _buildEvent(_status)),
+      ),
+      const SizedBox(height: 12),
       ParticipantPreview(event: _buildEvent(_status)),
       const SizedBox(height: 10),
       const NoteBlock(
@@ -744,35 +784,31 @@ class _EventWizardState extends ConsumerState<EventWizard> {
   Future<void> _pickVideo() async {
     setState(() => _busy = true);
     try {
-      final file = await FilePicker.pickFile(type: FileType.video);
-      if (file == null) return;
-      final path = file.path;
-      if (path == null || path.isEmpty) {
+      final files = await FilePicker.pickFiles(
+        type: FileType.video,
+      );
+      if (files.isEmpty) return;
+      final file = files.first;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
         _fail('Файл не читается — попробуй другой');
         return;
       }
-      final bytes = file.lengthSync() ?? await file.length() ?? 0;
-      if (bytes > 50 * 1024 * 1024) {
+      if (bytes.length > 50 * 1024 * 1024) {
         _fail('Видео больше 50 МБ');
-        return;
-      }
-      final ms = await probeVideoDurationMs(path);
-      if (ms > 30000) {
-        _fail('Видео длиннее 30 секунд — обрежь его');
         return;
       }
       final old = _video;
       if (old != null) await ref.read(repositoryProvider).removeMedia(old.id);
+      final media = await ref.read(repositoryProvider).uploadMedia(
+        _eventId,
+        bytes,
+        name: file.name,
+        kind: MediaKind.video,
+      );
       if (!mounted) return;
       setState(() {
-        _video = EventMedia(
-          id: Ids.next('md'),
-          eventId: _eventId,
-          kind: MediaKind.video,
-          path: path,
-          durationMs: ms,
-          bytes: bytes,
-        );
+        _video = media;
         _hint = null;
       });
     } catch (_) {
@@ -790,23 +826,22 @@ class _EventWizardState extends ConsumerState<EventWizard> {
         _fail('Не больше 20 фотографий');
         return;
       }
-      final files = await FilePicker.pickFiles(type: FileType.image);
+      final files = await FilePicker.pickFiles(
+        type: FileType.image,
+      );
       if (files.isEmpty) return;
       final added = <EventMedia>[];
       for (final file in files) {
-        if (added.length >= room) break;
-        final path = file.path;
-        if (path == null || path.isEmpty) continue;
-        added.add(
-          EventMedia(
-            id: Ids.next('md'),
-            eventId: _eventId,
-            kind: MediaKind.photo,
-            path: path,
-            bytes: file.lengthSync() ?? 0,
-            position: _photos.length + added.length,
-          ),
+        if (_photos.length + added.length >= 20) break;
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) continue;
+        final media = await ref.read(repositoryProvider).uploadMedia(
+          _eventId,
+          bytes,
+          name: file.name,
+          kind: MediaKind.photo,
         );
+        added.add(media);
       }
       if (added.isEmpty) {
         _fail('Ничего не выбрали');

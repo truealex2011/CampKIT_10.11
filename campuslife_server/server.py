@@ -119,6 +119,12 @@ class CampusLifeService:
             media_columns = {row["name"] for row in db.execute("PRAGMA table_info(media)")}
             if "position" not in media_columns:
                 db.execute("ALTER TABLE media ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+            event_columns = {row["name"] for row in db.execute("PRAGMA table_info(events)")}
+            if "auto_approve" not in event_columns:
+                db.execute("ALTER TABLE events ADD COLUMN auto_approve INTEGER NOT NULL DEFAULT 0")
+            membership_columns = {row["name"] for row in db.execute("PRAGMA table_info(memberships)")}
+            if "note" not in membership_columns:
+                db.execute("ALTER TABLE memberships ADD COLUMN note TEXT NOT NULL DEFAULT ''")
 
     def password_hash(self, password, salt=None):
         salt = salt or secrets.token_hex(16)
@@ -233,14 +239,15 @@ class CampusLifeService:
         status = str(data.get("status", "published"))
         if status not in ("draft", "pendingReview", "published", "rejected", "cancelled"):
             raise ApiError(400, "invalid_status", "Invalid event status")
-        return title, start_at, place, category, capacity, str(data.get("description", "")), status, fields, media
+        auto_approve = 1 if data.get("auto_approve") in (True, 1, "1", "true") else 0
+        return title, start_at, place, category, capacity, str(data.get("description", "")), status, fields, media, auto_approve
 
     def create_event(self, user, org_id, data):
         self.require_organizer(user, org_id)
         event_id = str(data.get("id") or identifier())
-        title, start_at, place, category, capacity, description, status, fields, media = self._event_values(data)
+        title, start_at, place, category, capacity, description, status, fields, media, auto_approve = self._event_values(data)
         with self.connect() as db:
-            db.execute("INSERT INTO events(id,org_id,title,description,category,start_at,place,capacity,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (event_id, org_id, title, description, category, start_at, place, capacity, status, now()))
+            db.execute("INSERT INTO events(id,org_id,title,description,category,start_at,place,capacity,status,auto_approve,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (event_id, org_id, title, description, category, start_at, place, capacity, status, auto_approve, now()))
             for position, field in enumerate(fields):
                 self.insert_field(db, event_id, field, position)
             for position, item in enumerate(media):
@@ -269,6 +276,7 @@ class CampusLifeService:
             if event is None:
                 raise ApiError(404, "not_found", "Event not found")
             result = dict(event)
+            result["auto_approve"] = bool(event["auto_approve"]) if "auto_approve" in event.keys() else False
             result["fields"] = [dict(field, required=bool(field["required"]), options=json.loads(field["options_json"])) for field in db.execute("SELECT * FROM fields WHERE event_id=? ORDER BY position", (event_id,))]
             result["media"] = [dict(row, url=f"/media/{row['id']}") for row in db.execute("SELECT * FROM media WHERE event_id=? ORDER BY created_at", (event_id,))]
             return result
@@ -286,10 +294,11 @@ class CampusLifeService:
             capacity = int(data.get("capacity", -1))
         except (ValueError, TypeError):
             raise ApiError(400, "invalid_request", "capacity must be an integer")
+        auto_approve = 1 if data.get("auto_approve") in (True, 1, "1", "true") else 0
         with self.connect() as db:
             db.execute(
-                "UPDATE events SET title=?,description=?,category=?,start_at=?,place=?,capacity=?,status=? WHERE id=?",
-                (self.text(data, "title"), str(data.get("description", "")), str(data.get("category", "other")), self.text(data, "start_at"), self.text(data, "place"), capacity, str(data.get("status", "draft")), event_id),
+                "UPDATE events SET title=?,description=?,category=?,start_at=?,place=?,capacity=?,status=?,auto_approve=? WHERE id=?",
+                (self.text(data, "title"), str(data.get("description", "")), str(data.get("category", "other")), self.text(data, "start_at"), self.text(data, "place"), capacity, str(data.get("status", "draft")), auto_approve, event_id),
             )
             db.execute("DELETE FROM fields WHERE event_id=?", (event_id,))
             for position, field in enumerate(fields):
@@ -351,13 +360,15 @@ class CampusLifeService:
                 db.execute("UPDATE applications SET answers_json=?,updated_at=? WHERE id=?", (encode(answers), now(), existing["id"]))
                 return self.application_dict(db, existing["id"])
             application_id = identifier()
-            db.execute("INSERT INTO applications(id,event_id,user_id,answers_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", (application_id, event_id, user["id"], encode(answers), "pending", now(), now()))
+            auto_approve = bool(event["auto_approve"]) if "auto_approve" in event.keys() else False
+            initial_status = "approved" if auto_approve else "pending"
+            db.execute("INSERT INTO applications(id,event_id,user_id,answers_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", (application_id, event_id, user["id"], encode(answers), initial_status, now(), now()))
             owner = db.execute("SELECT owner_id FROM organizations WHERE id=?", (event["org_id"],)).fetchone()
             self.notify(db, owner["owner_id"], "application_received", {"application_id": application_id, "event_id": event_id, "event_title": event["title"]})
             return self.application_dict(db, application_id)
 
     def application_dict(self, db, application_id):
-        row = db.execute("SELECT a.*,u.name AS applicant_name,u.email AS applicant_email FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?", (application_id,)).fetchone()
+        row = db.execute("SELECT a.*,u.name AS applicant_name,u.email AS applicant_email,u.phone AS applicant_phone FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?", (application_id,)).fetchone()
         result = dict(row)
         result["answers"] = json.loads(result.pop("answers_json"))
         return result
@@ -388,12 +399,12 @@ class CampusLifeService:
             self.notify(db, row["user_id"], "application_" + status, {"application_id": application_id, "event_id": row["event_id"], "event_title": row["title"], "status": status})
             return self.application_dict(db, application_id)
 
-    def request_membership(self, user, org_id):
+    def request_membership(self, user, org_id, note=""):
         with self.connect() as db:
             if db.execute("SELECT 1 FROM organizations WHERE id=?", (org_id,)).fetchone() is None:
                 raise ApiError(404, "not_found", "Organization not found")
-            db.execute("INSERT INTO memberships(org_id,user_id,role,status,requested_at) VALUES(?,?,?,'pending',?) ON CONFLICT(org_id,user_id) DO UPDATE SET status='pending',requested_at=excluded.requested_at", (org_id, user["id"], "member", now()))
-        return {"org_id": org_id, "user_id": user["id"], "status": "pending"}
+            db.execute("INSERT INTO memberships(org_id,user_id,role,status,note,requested_at) VALUES(?,?,?,'pending',?,?) ON CONFLICT(org_id,user_id) DO UPDATE SET status='pending',note=excluded.note,requested_at=excluded.requested_at", (org_id, user["id"], "member", note, now()))
+        return {"org_id": org_id, "user_id": user["id"], "status": "pending", "note": note}
 
     def membership_action(self, user, org_id, member_id, approve, role):
         self.require_organizer(user, org_id)
@@ -546,12 +557,14 @@ class Handler(BaseHTTPRequestHandler):
             if path == ["organizations"] and method == "GET":
                 return self.send_json(200, self.service.list_organizations(self.token_user()))
             if len(path) == 3 and path[0] == "organizations" and path[2] == "membership" and method == "POST":
-                return self.send_json(201, self.service.request_membership(self.token_user(), path[1]))
+                payload = self.read_json() if self.headers.get("Content-Length") and int(self.headers["Content-Length"]) > 0 else {}
+                note = str(payload.get("note", ""))
+                return self.send_json(201, self.service.request_membership(self.token_user(), path[1], note))
             if len(path) == 4 and path[0] == "organizations" and path[2] == "members" and path[3] == "pending" and method == "GET":
                 user = self.token_user()
                 self.service.require_organizer(user, path[1])
                 with self.service.connect() as db:
-                    rows = db.execute("SELECT m.*,u.name,u.email FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=? AND m.status='pending' ORDER BY m.requested_at", (path[1],)).fetchall()
+                    rows = db.execute("SELECT m.*,u.name,u.email,u.phone FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=? AND m.status='pending' ORDER BY m.requested_at", (path[1],)).fetchall()
                 return self.send_json(200, [dict(row) for row in rows])
             if len(path) == 5 and path[0] == "organizations" and path[2] == "members" and path[4] in ("approve", "reject") and method == "POST":
                 payload = self.read_json()

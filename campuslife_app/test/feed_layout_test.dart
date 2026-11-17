@@ -3,7 +3,6 @@ import 'package:campuslife_app/app/theme.dart';
 import 'package:campuslife_app/domain/entities.dart';
 import 'package:campuslife_app/presentation/feed/feed_screen.dart';
 import 'package:campuslife_app/presentation/shared/app_icons.dart';
-import 'package:campuslife_app/presentation/shared/fish.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,7 +66,7 @@ void main() {
       final centers = icons
           .map((icon) => tester.getCenter(railIcon(icon).first).dx)
           .toList();
-      final heart = tester.getCenter(find.byType(FishHeartIcon).first).dx;
+      final heart = tester.getCenter(railIcon(AppIcons.likeLight).first).dx;
       for (final x in centers) {
         expect(x, closeTo(heart, 0.1));
       }
@@ -94,7 +93,7 @@ void main() {
     final repo = await boot(tester, 320);
     final before = repo.regs.length;
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(FishHeartIcon).first),
+      tester.getCenter(railIcon(AppIcons.likeLight).first),
     );
     await tester.pump(const Duration(milliseconds: 1020));
     await tester.pump();
@@ -113,7 +112,7 @@ void main() {
       final repo = await boot(tester, 320);
       final before = repo.regs.length;
       final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(FishHeartIcon).first),
+        tester.getCenter(railIcon(AppIcons.likeLight).first),
       );
       await tester.pump(const Duration(milliseconds: 900));
       expect(

@@ -139,8 +139,8 @@ class ServerRepository extends LocalRepository {
   }
 
   @override
-  Future<void> requestMembership(String orgId, String userId) async {
-    await _request('POST', 'organizations/$orgId/membership', body: const {});
+  Future<void> requestMembership(String orgId, String userId, {String note = ''}) async {
+    await _request('POST', 'organizations/$orgId/membership', body: {'note': note});
   }
 
   @override
@@ -180,6 +180,10 @@ class ServerRepository extends LocalRepository {
         role: enumByName(MemberRole.values, '${json['role']}', MemberRole.member),
         status: enumByName(MemberStatus.values, '${json['status']}', MemberStatus.pending),
         requestedAt: DateTime.parse('${json['requested_at']}'),
+        name: json['name'] as String?,
+        email: json['email'] as String?,
+        phone: json['phone'] as String?,
+        note: (json['note'] as String?) ?? '',
       );
     }).toList(growable: false);
   }
@@ -277,6 +281,7 @@ class ServerRepository extends LocalRepository {
       place: '${json['place']}',
       capacity: (json['capacity'] as num?)?.toInt() ?? -1,
       status: enumByName(EventStatus.values, '${json['status']}', EventStatus.draft),
+      autoApprove: json['auto_approve'] == true || json['auto_approve'] == 1,
       fields: fields,
       media: media,
     );
@@ -302,6 +307,7 @@ class ServerRepository extends LocalRepository {
         userId: '${json['user_id']}',
         applicantName: '${json['applicant_name']}',
         applicantEmail: '${json['applicant_email']}',
+        applicantPhone: '${json['applicant_phone'] ?? ''}',
         answers: Map<String, String>.from(
           (json['answers'] as Map).map((key, value) => MapEntry('$key', '$value')),
         ),
@@ -318,5 +324,109 @@ class ServerRepository extends LocalRepository {
       'applications/$applicationId/status',
       body: {'status': approve ? 'approved' : 'rejected'},
     );
+  }
+
+  @override
+  Future<CampusEvent> saveDraft(CampusEvent event) async {
+    final body = {
+      'id': event.id,
+      'title': event.title,
+      'description': event.description,
+      'category': event.category.name,
+      'start_at': event.startAt.toIso8601String(),
+      'place': event.place,
+      'capacity': event.capacity,
+      'status': event.status.name,
+      'auto_approve': event.autoApprove,
+      'fields': [
+        for (var i = 0; i < event.fields.length; i++)
+          {
+            'id': event.fields[i].id,
+            'label': event.fields[i].label,
+            'type': event.fields[i].type.name,
+            'required': event.fields[i].required,
+            'options': event.fields[i].options,
+            'position': i,
+          }
+      ],
+      'media': [
+        for (var i = 0; i < event.media.length; i++)
+          {
+            'id': event.media[i].id,
+            'position': i,
+          }
+      ],
+    };
+    final response = await _request(
+      'POST',
+      'organizations/${event.orgId}/events',
+      body: body,
+    );
+    return _event(response);
+  }
+
+  @override
+  Future<CampusEvent> publish(String eventId) async {
+    final response = await _request(
+      'PUT',
+      'events/$eventId/status',
+      body: {'status': 'published'},
+    );
+    return _event(response);
+  }
+
+  @override
+  Future<CampusEvent> cancel(String eventId) async {
+    final response = await _request(
+      'PUT',
+      'events/$eventId/status',
+      body: {'status': 'cancelled'},
+    );
+    return _event(response);
+  }
+
+  @override
+  Future<void> deleteEvent(String eventId) async {
+    await _request('DELETE', 'events/$eventId');
+  }
+
+  @override
+  Future<EventMedia> uploadMedia(
+    String eventId,
+    List<int> bytes, {
+    required String name,
+    required MediaKind kind,
+  }) async {
+    final uri = baseUri.resolve('events/$eventId/media?name=${Uri.encodeComponent(name)}&kind=${kind.name}');
+    final request = http.Request('POST', uri)
+      ..headers['Authorization'] = 'Bearer $_token'
+      ..headers['Content-Type'] = 'application/octet-stream'
+      ..headers['X-Filename'] = name
+      ..bodyBytes = bytes;
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AppException('upload_failed', 'Не удалось загрузить медиа: ${response.statusCode}');
+    }
+    final json = _map(jsonDecode(response.body));
+    final relativeUrl = '${json['url']}';
+    return EventMedia(
+      id: '${json['id']}',
+      eventId: eventId,
+      kind: kind,
+      path: baseUri.resolve(relativeUrl).toString(),
+      bytes: bytes.length,
+      position: (json['position'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  @override
+  Future<String> shareUrl(String eventId) async {
+    final base = Uri.base;
+    if (base.host.isNotEmpty) {
+      final portPart = base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
+      return '${base.scheme}://${base.host}$portPart/#/events/$eventId';
+    }
+    return 'http://127.0.0.1:8731/#/events/$eventId';
   }
 }
