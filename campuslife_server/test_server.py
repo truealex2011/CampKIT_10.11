@@ -46,6 +46,17 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertEqual(status, 201)
         return result["token"], result["user"]
 
+    def test_organizer_registration_role_is_organizer_after_me(self):
+        token, registered = self.register("NewOrg", "neworg@example.test")
+        self.assertEqual(registered["role"], "participant")
+        status, org = self.request("POST", "/organizations", {
+            "name": "New Org", "city": "City", "invite_key": "CL-CAMP-2026",
+        }, token)
+        self.assertEqual(status, 201)
+        status, me = self.request("GET", "/auth/me", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(me["role"], "organizer")
+
     def publish_as_admin(self, event_id):
         status, admin = self.request("POST", "/auth/sign-in", {"email": "admin@campus.ru", "password": "password123"})
         self.assertEqual(status, 200)

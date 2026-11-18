@@ -136,7 +136,11 @@ class ServerRepository extends LocalRepository {
       'email': signup.email,
       'invite_key': signup.inviteKey,
     });
-    return _user(response['user']);
+    // Сервер создаёт аккаунт как participant и повышает роль до organizer
+    // только при создании организации. Поэтому ответ /auth/register содержит
+    // устаревшую роль — перечитываем пользователя с сервера после создания
+    // организации, иначе сессия останется «учеником».
+    return _user(await _request('GET', 'auth/me'));
   }
 
   @override
