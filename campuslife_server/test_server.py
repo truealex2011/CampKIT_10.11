@@ -46,6 +46,12 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertEqual(status, 201)
         return result["token"], result["user"]
 
+    def publish_as_admin(self, event_id):
+        status, admin = self.request("POST", "/auth/sign-in", {"email": "admin@campus.ru", "password": "password123"})
+        self.assertEqual(status, 200)
+        status, _ = self.request("PUT", f"/events/{event_id}/status", {"status": "published"}, admin["token"])
+        self.assertEqual(status, 200)
+
     def test_required_answers_approval_and_notifications(self):
         organizer_token, organizer = self.register("Organizer", "organizer@example.test")
         participant_token, _ = self.register("Participant", "participant@example.test")
@@ -56,6 +62,7 @@ class CampusLifeApiTests(unittest.TestCase):
             "fields": [{"id": "why", "label": "Why attend?", "type": "text", "required": True}],
         }, organizer_token)
         self.assertEqual(status, 201)
+        self.publish_as_admin(event["id"])
         field_id = event["fields"][0]["id"]
         status, invalid = self.request("POST", f"/events/{event['id']}/applications", {"answers": {}}, participant_token)
         self.assertEqual(status, 400)
@@ -82,6 +89,7 @@ class CampusLifeApiTests(unittest.TestCase):
         _, event = self.request("POST", f"/organizations/{organization['id']}/events", {
             "title": "Photo Event", "category": "art", "start_at": "2030-01-01T10:00:00Z", "place": "Room",
         }, organizer_token)
+        self.publish_as_admin(event["id"])
         media_bytes = b"persistent media bytes"
         status, media = self.request("POST", f"/events/{event['id']}/media?name=poster.bin&kind=photo", token=organizer_token, body=media_bytes, headers={"Content-Type": "application/octet-stream"})
         self.assertEqual(status, 201)
@@ -125,7 +133,9 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertEqual(status, 201)
         self.assertEqual(event["status"], "draft")
 
-        status, published = self.request("PUT", f"/events/{event['id']}/status", {"status": "published"}, organizer_token)
+        status, admin = self.request("POST", "/auth/sign-in", {"email": "admin@campus.ru", "password": "password123"})
+        self.assertEqual(status, 200)
+        status, published = self.request("PUT", f"/events/{event['id']}/status", {"status": "published"}, admin["token"])
         self.assertEqual(status, 200)
         self.assertEqual(published["status"], "published")
 
@@ -148,6 +158,8 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(any(item["event_id"] == event["id"] for item in tickets))
 
+        status, _ = self.request("PUT", f"/applications/{application['id']}/status", {"status": "approved"}, organizer_token)
+        self.assertEqual(status, 200)
         status, checked = self.request("POST", f"/events/{event['id']}/check-in", {"ticket_id": participant["id"]}, organizer_token)
         self.assertEqual(status, 200)
         self.assertTrue(checked["checked_in"])
@@ -210,6 +222,93 @@ class CampusLifeApiTests(unittest.TestCase):
         self.assertGreaterEqual(counters["orgs"], 1)
         self.assertGreaterEqual(counters["users"], 2)
         self.assertGreaterEqual(counters["active_invite_keys"], 1)
+    def test_security_regressions(self):
+        org_a_token, _ = self.register("OrgA", "orga@example.test")
+        status, org_a = self.request("POST", "/organizations", {"name": "Org A", "city": "City", "invite_key": "CL-CAMP-2026"}, org_a_token)
+        self.assertEqual(status, 201)
+        org_b_token, _ = self.register("OrgB", "orgb@example.test")
+        status, org_b = self.request("POST", "/organizations", {"name": "Org B", "city": "City", "invite_key": "CL-DEMO-ORGS"}, org_b_token)
+        self.assertEqual(status, 201)
+        p1_token, p1_user = self.register("P1", "p1@example.test")
+        p2_token, _ = self.register("P2", "p2@example.test")
+
+        # 1. IDOR: чужой организатор не может перезаписать событие по его id.
+        draft_id = "evt-security-draft"
+        status, _ = self.request("POST", f"/organizations/{org_a['id']}/events", {
+            "id": draft_id, "title": "Draft", "category": "science",
+            "start_at": "2030-01-01T10:00:00Z", "place": "Hall", "status": "draft",
+        }, org_a_token)
+        self.assertEqual(status, 201)
+        status, error = self.request("POST", f"/organizations/{org_b['id']}/events", {
+            "id": draft_id, "title": "Stolen", "category": "science",
+            "start_at": "2030-01-01T10:00:00Z", "place": "Hall", "status": "draft",
+        }, org_b_token)
+        self.assertEqual(status, 403)
+        self.assertEqual(error["error"]["code"], "forbidden")
+
+        # 2. Черновик не виден без токена.
+        status, _ = self.request("GET", f"/events/{draft_id}")
+        self.assertEqual(status, 404)
+
+        # 3. Организатор не может опубликовать минуя модерацию; админ может + причина сохраняется.
+        status, error = self.request("PUT", f"/events/{draft_id}/status", {"status": "published"}, org_a_token)
+        self.assertEqual(status, 403)
+        self.assertEqual(error["error"]["code"], "moderation_required")
+        status, admin = self.request("POST", "/auth/sign-in", {"email": "admin@campus.ru", "password": "password123"})
+        self.assertEqual(status, 200)
+        status, published = self.request("PUT", f"/events/{draft_id}/status", {"status": "published", "note": "одобрено"}, admin["token"])
+        self.assertEqual(status, 200)
+        self.assertEqual(published["moderation_note"], "одобрено")
+
+        # 4. Лимит мест.
+        cap_id = "evt-capacity"
+        status, _ = self.request("POST", f"/organizations/{org_a['id']}/events", {
+            "id": cap_id, "title": "Cap", "category": "science",
+            "start_at": "2030-02-01T10:00:00Z", "place": "Hall",
+            "capacity": 1, "auto_approve": True, "status": "published",
+        }, org_a_token)
+        self.assertEqual(status, 201)
+        self.publish_as_admin(cap_id)
+        status, _ = self.request("POST", f"/events/{cap_id}/applications", {"answers": {}}, p1_token)
+        self.assertEqual(status, 201)
+        status, error = self.request("POST", f"/events/{cap_id}/applications", {"answers": {}}, p2_token)
+        self.assertEqual(status, 409)
+        self.assertEqual(error["error"]["code"], "capacity_full")
+
+        # 5. Check-in: одобренный билет, повтор и неодобренная заявка.
+        status, checked = self.request("POST", f"/events/{cap_id}/check-in", {"ticket_id": p1_user["id"]}, org_a_token)
+        self.assertEqual(status, 200)
+        status, error = self.request("POST", f"/events/{cap_id}/check-in", {"ticket_id": p1_user["id"]}, org_a_token)
+        self.assertEqual(status, 409)
+        self.assertEqual(error["error"]["code"], "already_checked_in")
+        self.request("POST", f"/events/{cap_id}/applications", {"answers": {}}, p2_token)
+
+        # 6. Избранное/напоминания для несуществующего события -> 404, не 500.
+        status, _ = self.request("POST", "/events/missing-event/favorite", {}, p1_token)
+        self.assertEqual(status, 404)
+        status, _ = self.request("POST", "/events/missing-event/reminders", {"offset": "oneDay"}, p1_token)
+        self.assertEqual(status, 404)
+
+        # 7. Ключ не сгорает при невалидном городе и не используется дважды.
+        status, _ = self.request("POST", "/organizations", {"name": "NoCity", "invite_key": "CL-HACK-2026"}, org_a_token)
+        self.assertEqual(status, 400)
+        status, _ = self.request("POST", "/organizations", {"name": "OrgC", "city": "City", "invite_key": "CL-HACK-2026"}, org_a_token)
+        self.assertEqual(status, 201)
+        status, _ = self.request("POST", "/organizations", {"name": "Reuse", "city": "City", "invite_key": "CL-HACK-2026"}, org_a_token)
+        self.assertEqual(status, 400)
+
+        # 8. CORS разрешает DELETE.
+        with urllib.request.urlopen(self.base_url + "/health", timeout=5) as response:
+            self.assertIn("DELETE", response.headers.get("Access-Control-Allow-Methods", ""))
+
+        # 9. Опасный Content-Type медиа не отдаётся как HTML.
+        status, media = self.request("POST", f"/events/{cap_id}/media?name=x.html&kind=photo",
+                                     token=org_a_token, body=b"<script>alert(1)</script>",
+                                     headers={"Content-Type": "text/html"})
+        self.assertEqual(status, 201)
+        with urllib.request.urlopen(self.base_url + media["url"], timeout=5) as response:
+            self.assertEqual(response.headers.get("Content-Type"), "application/octet-stream")
+            self.assertIn("attachment", response.headers.get("Content-Disposition", ""))
 
 
 if __name__ == "__main__":

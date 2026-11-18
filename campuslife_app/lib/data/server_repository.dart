@@ -368,10 +368,12 @@ class ServerRepository extends LocalRepository {
 
   @override
   Future<CampusEvent> publish(String eventId) async {
+    // В серверном режиме «отправить на проверку» означает передачу события
+    // в очередь модерации; публикует его администратор через moderate().
     final response = await _request(
       'PUT',
       'events/$eventId/status',
-      body: {'status': 'published'},
+      body: {'status': 'pendingReview'},
     );
     return _event(response);
   }
@@ -424,11 +426,18 @@ class ServerRepository extends LocalRepository {
   @override
   Future<String> shareUrl(String eventId) async {
     final base = Uri.base;
-    if (base.host.isNotEmpty) {
-      final portPart = base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
+    if (base.host.isNotEmpty && base.scheme.startsWith('http')) {
+      final portPart =
+          base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
       return '${base.scheme}://${base.host}$portPart/#/events/$eventId';
     }
-    return 'http://127.0.0.1:8731/#/events/$eventId';
+    final serverHost = baseUri.host.isNotEmpty ? baseUri.host : 'campuslife.app';
+    final serverScheme = baseUri.scheme.isNotEmpty ? baseUri.scheme : 'https';
+    final portPart =
+        baseUri.hasPort && baseUri.port != 80 && baseUri.port != 443
+            ? ':${baseUri.port}'
+            : '';
+    return '$serverScheme://$serverHost$portPart/#/events/$eventId';
   }
 
   // ---- Синхронизация с сервером: избранное, напоминания, билеты, QR ----
@@ -615,11 +624,17 @@ class ServerRepository extends LocalRepository {
     bool approve, {
     String note = '',
   }) async {
+    final body = <String, dynamic>{
+      'status': approve ? 'published' : 'rejected',
+    };
+    if (note.trim().isNotEmpty) {
+      body['note'] = note.trim();
+    }
     final response = _map(
       await _request(
         'PUT',
         'events/$eventId/status',
-        body: {'status': approve ? 'published' : 'rejected'},
+        body: body,
       ),
     );
     return _event(response);

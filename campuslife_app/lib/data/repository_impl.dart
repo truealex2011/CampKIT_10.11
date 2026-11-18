@@ -531,11 +531,12 @@ class LocalRepository implements CampusLifeRepository {
   @override
   Future<String> shareUrl(String eventId) async {
     final base = Uri.base;
-    if (base.host.isNotEmpty) {
-      final portPart = base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
+    if (base.host.isNotEmpty && base.scheme.startsWith('http')) {
+      final portPart =
+          base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
       return '${base.scheme}://${base.host}$portPart/#/events/$eventId';
     }
-    return 'http://127.0.0.1:8731/#/events/$eventId';
+    return 'https://campuslife.app/#/events/$eventId';
   }
 
   @override

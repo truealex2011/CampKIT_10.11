@@ -122,6 +122,8 @@ class CampusLifeService:
             event_columns = {row["name"] for row in db.execute("PRAGMA table_info(events)")}
             if "auto_approve" not in event_columns:
                 db.execute("ALTER TABLE events ADD COLUMN auto_approve INTEGER NOT NULL DEFAULT 0")
+            if "moderation_note" not in event_columns:
+                db.execute("ALTER TABLE events ADD COLUMN moderation_note TEXT NOT NULL DEFAULT ''")
             membership_columns = {row["name"] for row in db.execute("PRAGMA table_info(memberships)")}
             if "note" not in membership_columns:
                 db.execute("ALTER TABLE memberships ADD COLUMN note TEXT NOT NULL DEFAULT ''")
@@ -237,19 +239,23 @@ class CampusLifeService:
 
     def create_organization(self, user, data):
         name = self.text(data, "name")
+        city = self.text(data, "city")
         invite_key = str(data.get("invite_key", "")).strip().upper()
         if not invite_key:
             raise ApiError(400, "invalid_invite_key", "Неверный или уже использованный invite-ключ")
-        with self.connect() as db:
-            k_row = db.execute("SELECT code FROM invite_keys WHERE code=? AND used=0", (invite_key,)).fetchone()
-            if not k_row:
-                raise ApiError(400, "invalid_invite_key", "Неверный или уже использованный invite-ключ")
-            db.execute("UPDATE invite_keys SET used=1 WHERE code=?", (invite_key,))
-        org_id = identifier()
-        with self.connect() as db:
-            db.execute("INSERT INTO organizations(id,name,type,city,owner_id,phone,email,created_at) VALUES(?,?,?,?,?,?,?,?)", (org_id, name, str(data.get("type", "club")), self.text(data, "city"), user["id"], str(data.get("phone", "")), str(data.get("email", "")), now()))
-            db.execute("INSERT INTO memberships(org_id,user_id,role,status,requested_at) VALUES(?,?,?,'approved',?)", (org_id, user["id"], "owner", now()))
-            db.execute("UPDATE users SET role='organizer' WHERE id=?", (user["id"],))
+        # Ключ гасим только после валидации полей и в одной транзакции с созданием
+        # организации — иначе при ошибке ключ сгорает зря, а параллельные запросы
+        # могут создать несколько организаций на один ключ.
+        with self.lock:
+            with self.connect() as db:
+                k_row = db.execute("SELECT code FROM invite_keys WHERE code=? AND used=0", (invite_key,)).fetchone()
+                if not k_row:
+                    raise ApiError(400, "invalid_invite_key", "Неверный или уже использованный invite-ключ")
+                org_id = identifier()
+                db.execute("UPDATE invite_keys SET used=1 WHERE code=?", (invite_key,))
+                db.execute("INSERT INTO organizations(id,name,type,city,owner_id,phone,email,created_at) VALUES(?,?,?,?,?,?,?,?)", (org_id, name, str(data.get("type", "club")), city, user["id"], str(data.get("phone", "")), str(data.get("email", "")), now()))
+                db.execute("INSERT INTO memberships(org_id,user_id,role,status,requested_at) VALUES(?,?,?,'approved',?)", (org_id, user["id"], "owner", now()))
+                db.execute("UPDATE users SET role='organizer' WHERE id=?", (user["id"],))
         return {"id": org_id, "name": name, "owner_id": user["id"]}
 
     def list_organizations(self, user):
@@ -267,7 +273,7 @@ class CampusLifeService:
                 "SELECT id FROM events WHERE org_id=? ORDER BY start_at DESC",
                 (org_id,),
             ).fetchall()
-        return [self.event_details(row["id"]) for row in ids]
+        return [self.event_details(row["id"], include_unpublished=True) for row in ids]
 
     def _event_values(self, data):
         title = self.text(data, "title")
@@ -296,8 +302,13 @@ class CampusLifeService:
         self.require_organizer(user, org_id)
         event_id = str(data.get("id") or identifier())
         title, start_at, place, category, capacity, description, status, fields, media, auto_approve = self._event_values(data)
+        # Организатор не может сразу выложить событие в ленту — только в очередь модерации.
+        if status in ("published", "rejected") and user.get("role") != "admin":
+            status = "pendingReview"
         with self.connect() as db:
-            existing = db.execute("SELECT id FROM events WHERE id=?", (event_id,)).fetchone()
+            existing = db.execute("SELECT id,org_id FROM events WHERE id=?", (event_id,)).fetchone()
+            if existing and existing["org_id"] != org_id:
+                raise ApiError(403, "forbidden", "Event belongs to another organization")
             if existing:
                 db.execute(
                     "UPDATE events SET org_id=?,title=?,description=?,category=?,start_at=?,place=?,capacity=?,status=?,auto_approve=? WHERE id=?",
@@ -313,7 +324,7 @@ class CampusLifeService:
                 self.insert_field(db, event_id, field, position)
             for position, item in enumerate(media):
                 self.attach_existing_media(db, event_id, item, position)
-        return self.event_details(event_id)
+        return self.event_details(event_id, include_unpublished=True)
 
     def attach_existing_media(self, db, event_id, item, position):
         if not isinstance(item, dict) or not isinstance(item.get("id"), str):
@@ -331,10 +342,26 @@ class CampusLifeService:
             raise ApiError(400, "invalid_field", "Field options must be an array of strings")
         db.execute("INSERT INTO fields(id,event_id,label,type,required,options_json,position) VALUES(?,?,?,?,?,?,?)", (str(field.get("id") or identifier()), event_id, label, str(field.get("type", "text")), 1 if field.get("required", False) else 0, encode(options), int(field.get("position", position))))
 
-    def event_details(self, event_id):
+    def can_manage_event(self, user, event_id):
+        with self.connect() as db:
+            row = db.execute("SELECT org_id FROM events WHERE id=?", (event_id,)).fetchone()
+        if row is None:
+            return False
+        if user.get("role") == "admin":
+            return True
+        with self.connect() as db:
+            membership = db.execute(
+                "SELECT 1 FROM memberships WHERE org_id=? AND user_id=? AND status='approved' AND role IN ('owner','manager')",
+                (row["org_id"], user["id"]),
+            ).fetchone()
+        return membership is not None
+
+    def event_details(self, event_id, include_unpublished=False):
         with self.connect() as db:
             event = db.execute("SELECT e.*,o.name AS organization_name FROM events e JOIN organizations o ON o.id=e.org_id WHERE e.id=?", (event_id,)).fetchone()
             if event is None:
+                raise ApiError(404, "not_found", "Event not found")
+            if not include_unpublished and event["status"] != "published":
                 raise ApiError(404, "not_found", "Event not found")
             result = dict(event)
             result["auto_approve"] = bool(event["auto_approve"]) if "auto_approve" in event.keys() else False
@@ -364,9 +391,9 @@ class CampusLifeService:
             db.execute("DELETE FROM fields WHERE event_id=?", (event_id,))
             for position, field in enumerate(fields):
                 self.insert_field(db, event_id, field, position)
-        return self.event_details(event_id)
+        return self.event_details(event_id, include_unpublished=True)
 
-    def set_event_status(self, user, event_id, status):
+    def set_event_status(self, user, event_id, status, note=""):
         if status not in ("draft", "pendingReview", "published", "rejected", "cancelled"):
             raise ApiError(400, "invalid_status", "Invalid event status")
         with self.connect() as db:
@@ -374,9 +401,15 @@ class CampusLifeService:
         if row is None:
             raise ApiError(404, "not_found", "Event not found")
         self.require_organizer(user, row["org_id"])
+        # Публикация и отклонение — прерогатива администратора (очередь модерации).
+        if status in ("published", "rejected") and user.get("role") != "admin":
+            raise ApiError(403, "moderation_required", "Only an administrator can publish or reject events")
         with self.connect() as db:
-            db.execute("UPDATE events SET status=? WHERE id=?", (status, event_id))
-        return self.event_details(event_id)
+            if status in ("published", "rejected"):
+                db.execute("UPDATE events SET status=?,moderation_note=? WHERE id=?", (status, str(note or "")[:1000], event_id))
+            else:
+                db.execute("UPDATE events SET status=? WHERE id=?", (status, event_id))
+        return self.event_details(event_id, include_unpublished=True)
 
     def delete_event(self, user, event_id):
         with self.connect() as db:
@@ -420,6 +453,13 @@ class CampusLifeService:
                     raise ApiError(409, "application_resolved", "A resolved application cannot be changed")
                 db.execute("UPDATE applications SET answers_json=?,updated_at=? WHERE id=?", (encode(answers), now(), existing["id"]))
                 return self.application_dict(db, existing["id"])
+            if event["capacity"] > 0:
+                taken = db.execute(
+                    "SELECT count(*) as c FROM applications WHERE event_id=? AND status IN ('approved','checked_in')",
+                    (event_id,),
+                ).fetchone()["c"]
+                if taken >= event["capacity"]:
+                    raise ApiError(409, "capacity_full", "Свободных мест не осталось")
             application_id = identifier()
             auto_approve = bool(event["auto_approve"]) if "auto_approve" in event.keys() else False
             initial_status = "approved" if auto_approve else "pending"
@@ -543,7 +583,7 @@ class CampusLifeService:
             ).fetchall()
         result = []
         for row in rows:
-            event = self.event_details(row["event_id"])
+            event = self.event_details(row["event_id"], include_unpublished=True)
             item = {
                 "id": row["id"],
                 "event_id": row["event_id"],
@@ -558,8 +598,13 @@ class CampusLifeService:
             result.append(item)
         return result
 
+    def ensure_event(self, db, event_id):
+        if db.execute("SELECT 1 FROM events WHERE id=?", (event_id,)).fetchone() is None:
+            raise ApiError(404, "not_found", "Event not found")
+
     def toggle_favorite(self, user, event_id):
         with self.connect() as db:
+            self.ensure_event(db, event_id)
             existing = db.execute("SELECT 1 FROM favorites WHERE user_id=? AND event_id=?", (user["id"], event_id)).fetchone()
             if existing:
                 db.execute("DELETE FROM favorites WHERE user_id=? AND event_id=?", (user["id"], event_id))
@@ -571,10 +616,11 @@ class CampusLifeService:
     def list_my_favorites(self, user):
         with self.connect() as db:
             rows = db.execute("SELECT event_id FROM favorites WHERE user_id=? ORDER BY created_at DESC", (user["id"],)).fetchall()
-        return [self.event_details(row["event_id"]) for row in rows]
+        return [self.event_details(row["event_id"], include_unpublished=True) for row in rows]
 
     def set_reminder(self, user, event_id, offset):
         with self.connect() as db:
+            self.ensure_event(db, event_id)
             db.execute("INSERT OR REPLACE INTO reminders(user_id, event_id, offset, created_at) VALUES(?,?,?,?)", (user["id"], event_id, str(offset), now()))
         return {"reminded": True, "event_id": event_id, "offset": offset}
 
@@ -595,12 +641,20 @@ class CampusLifeService:
             if not row:
                 raise ApiError(404, "not_found", "Event not found")
             self.require_organizer(user, row["org_id"])
-            cursor = db.execute(
-                "UPDATE applications SET status='checked_in', updated_at=? WHERE (id=? OR user_id=?) AND event_id=?",
-                (now(), ticket, ticket, event_id),
-            )
-            if cursor.rowcount == 0:
+            application = db.execute(
+                "SELECT id,status FROM applications WHERE (id=? OR user_id=?) AND event_id=?",
+                (ticket, ticket, event_id),
+            ).fetchone()
+            if application is None:
                 raise ApiError(404, "not_found", "Ticket not found for this event")
+            if application["status"] == "checked_in":
+                raise ApiError(409, "already_checked_in", "Этот билет уже отсканирован")
+            if application["status"] != "approved":
+                raise ApiError(409, "ticket_not_approved", "Заявка не одобрена")
+            db.execute(
+                "UPDATE applications SET status='checked_in', updated_at=? WHERE id=?",
+                (now(), application["id"]),
+            )
         return {"checked_in": True, "ticket_id": ticket, "event_id": event_id}
 
     def my_reminder(self, user, event_id):
@@ -611,7 +665,7 @@ class CampusLifeService:
             ).fetchone()
         if not row:
             return None
-        return {"event_id": event_id, "offset": row["offset"], "event": self.event_details(event_id)}
+        return {"event_id": event_id, "offset": row["offset"], "event": self.event_details(event_id, include_unpublished=True)}
 
     def event_attendees(self, user, event_id):
         with self.connect() as db:
@@ -646,7 +700,7 @@ class CampusLifeService:
         self.require_admin(user)
         with self.connect() as db:
             rows = db.execute("SELECT id FROM events WHERE status='pendingReview' ORDER BY created_at DESC").fetchall()
-        return [self.event_details(row["id"]) for row in rows]
+        return [self.event_details(row["id"], include_unpublished=True) for row in rows]
 
     def admin_counters(self, user):
         self.require_admin(user)
@@ -675,7 +729,7 @@ class Handler(BaseHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", self.cors_origin)
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Filename")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Vary", "Origin")
         super().end_headers()
 
@@ -745,10 +799,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(200, {"status": "ok"})
             if len(path) == 2 and path[0] == "media" and method == "GET":
                 media_path, content_type, size = self.service.media_file(path[1])
+                base_type = content_type.split(";", 1)[0].strip().lower()
+                unsafe = base_type in (
+                    "text/html", "text/javascript", "application/javascript",
+                    "image/svg+xml", "text/xml", "application/xml",
+                )
+                if unsafe:
+                    content_type = "application/octet-stream"
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(size))
                 self.send_header("X-Content-Type-Options", "nosniff")
+                if unsafe:
+                    self.send_header("Content-Disposition", 'attachment; filename="media"')
                 self.end_headers()
                 with media_path.open("rb") as source:
                     while chunk := source.read(65536):
@@ -786,7 +849,13 @@ class Handler(BaseHTTPRequestHandler):
                     rows = db.execute("SELECT id FROM events WHERE status='published' ORDER BY start_at").fetchall()
                 return self.send_json(200, [self.service.event_details(row["id"]) for row in rows])
             if len(path) == 2 and path[0] == "events" and method == "GET":
-                return self.send_json(200, self.service.event_details(path[1]))
+                include = False
+                if self.headers.get("Authorization", "").startswith("Bearer "):
+                    try:
+                        include = self.service.can_manage_event(self.token_user(), path[1])
+                    except ApiError:
+                        include = False
+                return self.send_json(200, self.service.event_details(path[1], include_unpublished=include))
             if len(path) == 3 and path[0] == "events" and path[2] == "applications" and method == "POST":
                 return self.send_json(201, self.service.apply(self.token_user(), path[1], self.read_json().get("answers", {})))
             if len(path) == 4 and path[0] == "events" and path[2] == "applications" and path[3] == "":
@@ -797,7 +866,12 @@ class Handler(BaseHTTPRequestHandler):
                 status = self.read_json().get("status")
                 return self.send_json(200, self.service.resolve_application(self.token_user(), path[1], status))
             if len(path) == 3 and path[0] == "events" and path[2] == "status" and method == "PUT":
-                return self.send_json(200, self.service.set_event_status(self.token_user(), path[1], self.read_json().get("status")))
+                payload = self.read_json()
+                return self.send_json(200, self.service.set_event_status(
+                    self.token_user(), path[1], payload.get("status"), payload.get("note", ""),
+                ))
+            if len(path) == 2 and path[0] == "events" and method == "PUT":
+                return self.send_json(200, self.service.update_event(self.token_user(), path[1], self.read_json()))
             if len(path) == 2 and path[0] == "events" and method == "DELETE":
                 return self.send_json(200, self.service.delete_event(self.token_user(), path[1]))
             if (path == ["my", "tickets"] or path == ["my", "applications"]) and method == "GET":
